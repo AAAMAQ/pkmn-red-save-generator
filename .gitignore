@@ -1,0 +1,55 @@
+.DS_Store
+
+# Environment files
+.env
+.env.*
+
+# Xcode user state
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Build outputs
+build/
+Build/
+DerivedData/
+out/
+tmp/
+*.o
+*.obj
+
+# Generated validation and output artifacts
+*.semantic-generated*.sav
+*.semantic-generated*.json
+*.generation-report.json
+generated-save*.sav
+generated-save*.json
+
+# General logs
+*.log
+
+# ROM images and binary game media
+*.gb
+*.gbc
+*.gba
+*.nds
+*.3ds
+*.cia
+*.rom
+*.bin
+
+# Personal/private reference material
+personal resources/
+personal_resources/
+Personal Resources/
+personal rescources/
+
+# PDFs are local research/reference artifacts unless explicitly approved
+*.pdf
