@@ -1,6 +1,6 @@
 # Dummy Template Inheritance Map
 
-Status: Milestone 0 provisional map. This is intentionally coarse and will be refined as serializer coverage is implemented.
+Status: Milestone 2 has refined the minimal-generation ranges below. Storage, party serialization beyond the empty canonical state, and broader event coverage remain pending future refinement.
 
 Purpose:
 
@@ -47,6 +47,35 @@ Purpose:
 
 ## Notes
 
-- The `0x2598-0x29F2` range above will be split into finer field-level rows before implementation begins.
+- Milestone 2 exact write and clear ranges are now:
+  - overwritten from target semantic input:
+    - `0x2598-0x25A2` player name
+    - `0x25F3-0x25F5` money
+    - `0x25F6-0x2600` rival name
+    - `0x2601` options
+    - `0x2604` letter delay
+    - `0x2605-0x2606` trainer ID
+    - `0x2609` contrast
+    - `0x260A-0x2610` safe location and coordinates
+    - `0x2850-0x2851` coins
+    - `0x2CED-0x2CF1` playtime
+  - intentionally cleared to canonical minimal defaults:
+    - `0x0598-0x1857` Hall of Fame block
+    - `0x25A3-0x25B5` Pokédex owned bitfield
+    - `0x25B6-0x25C8` Pokédex seen bitfield
+    - `0x25C9-0x25F2` bag inventory
+    - `0x2602` badges
+    - `0x27E6-0x284B` PC item inventory
+    - `0x284E` Hall of Fame entry count
+    - `0x29D6` badge mirror
+    - `0x2CF4-0x2D2B` daycare block
+    - `0x2F2C-0x30BF` party block
+  - regenerated checksum:
+    - `0x3523` main checksum
+  - preserved canonical inherited state under Policy A:
+    - `0x30C0-0x3521` current box cache
+    - `0x4000-0x5A52` permanent box banks 1-6 plus stored checksum bytes
+    - `0x6000-0x7A52` permanent box banks 7-12 plus stored checksum bytes
+
 - The current dummy's invalid permanent box contents make the box-related rows the highest-risk inherited areas in the entire template.
 - No final generator should ship without making the overwritten, derived, synchronized, regenerated, and inherited ranges explicit in its generation report.

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "../comparison/SemanticComparator.hpp"
+#include "../generation/MinimalSaveGenerator.hpp"
+#include "../generation/MinimalStateContract.hpp"
 #include "../generation/RedSaveInitializer.hpp"
 #include "../input/PhysicalImageIsolationGuard.hpp"
 #include "../input/RedJsonReader.hpp"
@@ -39,6 +41,12 @@ public:
             if (command == "show-profile") {
                 return RunShowProfile(args);
             }
+            if (command == "generate") {
+                return RunGenerate(args);
+            }
+            if (command == "compare-semantics") {
+                return RunCompareSemantics(args);
+            }
 
             std::cerr << "Unknown command: " << command << "\n";
             PrintUsage();
@@ -55,7 +63,9 @@ private:
             << "pkmn-red-save-generator\n"
             << "  validate-input --input <path>\n"
             << "  validate-template --template <path> --profile <path>\n"
-            << "  show-profile --profile <path>\n";
+            << "  show-profile --profile <path>\n"
+            << "  generate --input <target.red.json> --template <dummy.sav> --profile <profile.json> --output <generated.sav> --report <generated.generation-report.json>\n"
+            << "  compare-semantics --target-json <target.red.json> --reparsed-json <savegenie-output.red.json>\n";
     }
 
     static std::string GetRequiredFlag(const std::vector<std::string>& args, std::string_view name) {
@@ -142,6 +152,70 @@ private:
         }
         std::cout << "\n";
         return 0;
+    }
+
+    static int RunGenerate(const std::vector<std::string>& args) {
+        generation::GenerateRequest request;
+        request.inputJsonPath = GetRequiredFlag(args, "--input");
+        request.templateSavePath = GetRequiredFlag(args, "--template");
+        request.profilePath = GetRequiredFlag(args, "--profile");
+        request.outputSavePath = GetRequiredFlag(args, "--output");
+        request.outputReportPath = GetRequiredFlag(args, "--report");
+
+        const generation::GenerateResult result = generation::MinimalSaveGenerator::Generate(request);
+        std::cout << "Generated save: " << request.outputSavePath.string() << "\n";
+        std::cout << "Generation report: " << request.outputReportPath.string() << "\n";
+        std::cout << "Output SHA-256: " << result.report.outputSha256 << "\n";
+        std::cout << "Dummy box policy: " << result.report.dummyBoxPolicy << "\n";
+        std::cout << "Main checksum valid: " << (result.integrity.mainChecksumValid ? "yes" : "no") << "\n";
+        std::cout << "Bank 2 all checksum valid: " << (result.integrity.bank2ChecksumValid ? "yes" : "no") << "\n";
+        std::cout << "Bank 3 all checksum valid: " << (result.integrity.bank3ChecksumValid ? "yes" : "no") << "\n";
+        std::cout << "Bank storage unchanged from template: "
+                  << (result.integrity.bankStorageUnchanged ? "yes" : "no") << "\n";
+        for (const std::string& warning : result.report.warnings) {
+            std::cout << "warning: " << warning << "\n";
+        }
+        return 0;
+    }
+
+    static int RunCompareSemantics(const std::vector<std::string>& args) {
+        const std::filesystem::path targetPath = GetRequiredFlag(args, "--target-json");
+        const std::filesystem::path reparsedPath = GetRequiredFlag(args, "--reparsed-json");
+
+        const auto targetParsed = input::RedJsonReader::ReadFromFile(targetPath);
+        const auto targetSanitized = input::PhysicalImageIsolationGuard::Sanitize(targetParsed.document);
+        const auto targetSemantic =
+            model::RedSemanticStateBuilder::Build(targetSanitized.document, targetSanitized.physicalImageRemoved);
+        if (!targetSemantic.ok) {
+            std::cerr << "error: failed to build semantic state from target JSON\n";
+            return 1;
+        }
+
+        const auto contract = generation::MinimalStateContractBuilder::Build(targetSemantic.state);
+        const auto actualParsed = input::RedJsonReader::ReadFromFile(reparsedPath);
+        const auto actualSanitized = input::PhysicalImageIsolationGuard::Sanitize(actualParsed.document);
+        const auto actualSemantic =
+            model::RedSemanticStateBuilder::Build(actualSanitized.document, actualSanitized.physicalImageRemoved);
+        if (!actualSemantic.ok) {
+            std::cerr << "error: failed to build semantic state from reparsed JSON\n";
+            return 1;
+        }
+
+        comparison::ComparisonOptions options;
+        options.compareEventSubset = false;
+        const auto differences = comparison::SemanticComparator::CompareOwnedFields(
+            contract.expectedSemantic, actualSemantic.state, options);
+        if (differences.empty()) {
+            std::cout << "Milestone 2 semantic comparison: PASS\n";
+            return 0;
+        }
+
+        std::cout << "Milestone 2 semantic comparison: FAIL\n";
+        for (const auto& difference : differences) {
+            std::cout << difference.fieldPath << ": expected=" << difference.expectedValue
+                      << " actual=" << difference.actualValue << "\n";
+        }
+        return 1;
     }
 };
 

@@ -60,6 +60,24 @@ struct InventoryState {
     bool operator==(const InventoryState&) const = default;
 };
 
+struct PartyState {
+    int count = 0;
+
+    bool operator==(const PartyState&) const = default;
+};
+
+struct DaycareState {
+    bool inUse = false;
+
+    bool operator==(const DaycareState&) const = default;
+};
+
+struct HallOfFameState {
+    int entryCount = 0;
+
+    bool operator==(const HallOfFameState&) const = default;
+};
+
 struct EventSubsetState {
     std::vector<bool> visitedTowns;
     std::vector<bool> hiddenItems;
@@ -78,6 +96,9 @@ struct RedSemanticState {
     CoreState core;
     PokedexState pokedex;
     InventoryState inventory;
+    PartyState party;
+    DaycareState daycare;
+    HallOfFameState hallOfFame;
     EventSubsetState eventSubset;
 
     bool operator==(const RedSemanticState&) const = default;
@@ -163,6 +184,10 @@ public:
                     static_cast<std::uint8_t>(item.at("quantity").get<int>())
                 });
             }
+
+            state.party.count = decoded.at("party").at("count").get<int>();
+            state.daycare.inUse = decoded.at("daycare").at("inUse").get<bool>();
+            state.hallOfFame.entryCount = decoded.at("hallOfFame").at("entryCount").get<int>();
 
             state.eventSubset.visitedTowns.reserve(decoded.at("visitedTowns").size());
             for (const auto& entry : decoded.at("visitedTowns")) {

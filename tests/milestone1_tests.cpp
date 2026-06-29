@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -6,13 +7,17 @@
 
 #include "../src/comparison/SemanticComparator.hpp"
 #include "../src/encoding/BcdEncoder.hpp"
+#include "../src/encoding/Gen1Layout.hpp"
 #include "../src/encoding/BitfieldWriter.hpp"
 #include "../src/encoding/Gen1TextEncoder.hpp"
 #include "../src/encoding/PrimitiveWriter.hpp"
+#include "../src/generation/MinimalSaveGenerator.hpp"
+#include "../src/generation/MinimalStateContract.hpp"
 #include "../src/generation/RedSaveInitializer.hpp"
 #include "../src/input/PhysicalImageIsolationGuard.hpp"
 #include "../src/input/RedJsonReader.hpp"
 #include "../src/input/RedJsonValidator.hpp"
+#include "../src/integrity/IntegrityValidator.hpp"
 #include "../src/model/RedSemanticState.hpp"
 #include "../src/template/CanonicalTemplateLoader.hpp"
 #include "../src/template/TemplateProfile.hpp"
@@ -42,6 +47,19 @@ std::filesystem::path DummySavPath() {
 
 std::filesystem::path ProfilePath() {
     return RepoRoot() / "profiles" / "pokemon-red-usa-europe-v1.json";
+}
+
+std::filesystem::path MakeTempDir(const std::string& name) {
+    const auto dir = std::filesystem::temp_directory_path() / ("pkmn-red-save-generator-" + name);
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+void WriteJson(const std::filesystem::path& path, const nlohmann::json& json) {
+    std::ofstream out(path);
+    REQUIRE(out.good());
+    out << json.dump(2) << "\n";
 }
 
 }  // namespace
@@ -96,6 +114,9 @@ TEST_CASE("Dummy red json validates and builds a semantic model") {
     CHECK(build.state.inventory.pcItems.size() == 1);
     CHECK(build.state.inventory.pcItems.front().name == "POTION");
     CHECK(build.state.pokedex.owned.size() == 151);
+    CHECK(build.state.party.count == 0);
+    CHECK_FALSE(build.state.daycare.inUse);
+    CHECK(build.state.hallOfFame.entryCount == 0);
     CHECK(build.state.eventSubset.visitedTowns.size() == 11);
     CHECK(build.state.physicalImageIgnored);
 }
@@ -185,4 +206,124 @@ TEST_CASE("Deterministic working-buffer initialization copies the canonical temp
     CHECK(first.report.physicalImageIgnored);
     REQUIRE(first.report.ranges.size() == 1);
     CHECK(first.report.ranges.front().classification == "template-inherited");
+}
+
+TEST_CASE("Milestone 2 generator writes a minimal deterministic save from semantic input") {
+    const auto tempDir = MakeTempDir("milestone2-generate");
+    const auto outputPath = tempDir / "generated.sav";
+    const auto reportPath = tempDir / "generated.generation-report.json";
+
+    pkmn::savegen::generation::GenerateRequest request;
+    request.inputJsonPath = DummyJsonPath();
+    request.templateSavePath = DummySavPath();
+    request.profilePath = ProfilePath();
+    request.outputSavePath = outputPath;
+    request.outputReportPath = reportPath;
+
+    const auto result = pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+
+    CHECK(std::filesystem::exists(outputPath));
+    CHECK(std::filesystem::exists(reportPath));
+    CHECK(result.outputBytes.size() == pkmn::savegen::encoding::Gen1Layout::ExpectedSaveSize);
+    CHECK(result.integrity.ok);
+    CHECK(result.integrity.mainChecksumValid);
+    CHECK_FALSE(result.integrity.bank2ChecksumValid);
+    CHECK_FALSE(result.integrity.bank3ChecksumValid);
+    CHECK(result.integrity.bankStorageUnchanged);
+
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::TrainerNameOff,
+              pkmn::savegen::encoding::Gen1Layout::TrainerNameLen) == "RED");
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::RivalNameOff,
+              pkmn::savegen::encoding::Gen1Layout::RivalNameLen) == "BLUE");
+    CHECK(pkmn::savegen::encoding::PrimitiveWriter::ReadU16BigEndian(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::TrainerIdOff) == 60066);
+    CHECK(pkmn::savegen::encoding::BcdEncoder::Decode3(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::MoneyOff) == 3000U);
+    CHECK(pkmn::savegen::encoding::BcdEncoder::Decode2(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::CoinsOff) == 0U);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BadgesOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BadgesMirrorOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BagItemsCountOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BagItemsPairsOff] == 0xFF);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff] == 0xFF);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PartyCountOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PartySpeciesOff] == 0xFF);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::HallOfFameRecordCountOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::DaycareInUseOff] == 0);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::MapIdOff] == 38);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::XCoordOff] == 3);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::YCoordOff] == 6);
+}
+
+TEST_CASE("Milestone 2 generation ignores target physicalImage and is deterministic") {
+    const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
+    const auto tempDir = MakeTempDir("milestone2-determinism");
+
+    nlohmann::json variant = parsed.document;
+    variant["physicalImage"] = {
+        {"encoding", "hex_uppercase_continuous"},
+        {"standardSramHex", "DEADBEEF"},
+        {"trailingDataHex", ""},
+        {"totalLength", 4},
+        {"standardSramLength", 4},
+        {"trailingLength", 0}
+    };
+    const auto variantPath = tempDir / "variant.red.json";
+    WriteJson(variantPath, variant);
+
+    pkmn::savegen::generation::GenerateRequest first;
+    first.inputJsonPath = DummyJsonPath();
+    first.templateSavePath = DummySavPath();
+    first.profilePath = ProfilePath();
+    first.outputSavePath = tempDir / "first.sav";
+    first.outputReportPath = tempDir / "first.report.json";
+
+    pkmn::savegen::generation::GenerateRequest second = first;
+    second.inputJsonPath = variantPath;
+    second.outputSavePath = tempDir / "second.sav";
+    second.outputReportPath = tempDir / "second.report.json";
+
+    const auto firstResult = pkmn::savegen::generation::MinimalSaveGenerator::Generate(first);
+    const auto secondResult = pkmn::savegen::generation::MinimalSaveGenerator::Generate(second);
+    CHECK(firstResult.outputBytes == secondResult.outputBytes);
+}
+
+TEST_CASE("Milestone 2 generation rejects unsupported safe locations and output collisions") {
+    const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
+    const auto tempDir = MakeTempDir("milestone2-reject");
+
+    nlohmann::json badLocation = parsed.document;
+    badLocation["decoded"]["location"]["map"]["id"] = 1;
+    badLocation["decoded"]["location"]["x"]["value"] = 1;
+    badLocation["decoded"]["location"]["y"]["value"] = 1;
+    const auto badLocationPath = tempDir / "bad-location.red.json";
+    WriteJson(badLocationPath, badLocation);
+
+    pkmn::savegen::generation::GenerateRequest request;
+    request.inputJsonPath = badLocationPath;
+    request.templateSavePath = DummySavPath();
+    request.profilePath = ProfilePath();
+    request.outputSavePath = tempDir / "bad-location.sav";
+    request.outputReportPath = tempDir / "bad-location.report.json";
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
+
+    const auto existingOutput = tempDir / "existing.sav";
+    {
+        std::ofstream out(existingOutput);
+        REQUIRE(out.good());
+        out << "already here";
+    }
+
+    request.inputJsonPath = DummyJsonPath();
+    request.outputSavePath = existingOutput;
+    request.outputReportPath = tempDir / "existing.report.json";
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
 }

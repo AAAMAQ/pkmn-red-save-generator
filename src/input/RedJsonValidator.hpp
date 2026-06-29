@@ -39,6 +39,7 @@ public:
         };
 
         const nlohmann::json* schema = require_path(document, {"schema"}, "schema");
+        static_cast<void>(require_path(document, {"source", "hashes", "wholeFileSha256"}, "source.hashes.wholeFileSha256"));
         const nlohmann::json* decoded = require_path(document, {"decoded"}, "decoded");
 
         if (schema != nullptr) {
@@ -71,7 +72,8 @@ public:
         if (decoded != nullptr) {
             const std::vector<std::vector<std::string>> requiredPaths = {
                 {"trainer"}, {"rival"}, {"options"}, {"playtime"}, {"moneyAndCoins"},
-                {"badges"}, {"location"}, {"pokedex"}, {"inventory"},
+                {"badges"}, {"location"}, {"pokedex"}, {"inventory"}, {"party"},
+                {"daycare"}, {"hallOfFame"},
                 {"visitedTowns"}, {"hiddenItems"}, {"hiddenCoins"}
             };
             for (const auto& path : requiredPaths) {

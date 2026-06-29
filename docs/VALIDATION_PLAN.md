@@ -45,6 +45,11 @@ Milestone 1 implements the first validation layers. Full generation validation r
 - strings encodable
 - party and storage structures internally consistent
 - checksums valid
+- Milestone 2 now validates:
+  - output size `32768`
+  - regenerated main checksum
+  - unchanged permanent box banks under Policy A
+  - unchanged bank 2 and bank 3 all-box checksum state under Policy A
 
 ## Stage 5: Independent Reparse
 
@@ -67,6 +72,17 @@ Eventually confirm:
 - party, boxes, inventory, Pokedex, and location load safely
 - no corruption warning appears
 - game can save again
+
+Milestone 2 emulator-load evidence now recorded:
+
+- `Continue` appeared
+- the save loaded
+- trainer `RED` displayed correctly
+- money `3000` displayed correctly
+- Red loaded in his house on the second floor
+- no immediate corruption warning appeared
+
+Milestone 2 emulator validation still remains incomplete until a post-save `.sav` is reparsed.
 
 ## Stage 7: Save-Again Validation
 
@@ -121,4 +137,10 @@ Milestone 1 proof:
 
 ## Current Milestone Limitation
 
-Milestone 1 stops at foundation work. There is still no accepted minimal save generator, no checksum writer, no Save Genie reparse pipeline for generated output, and no emulator validation for generated saves.
+Milestone 2 now has an automated minimal generator, main checksum regeneration, Save Genie reparse, deterministic-output proof, and field-aware comparison for owned minimal fields.
+
+Remaining Milestone 2 limitation:
+
+- emulator load has been confirmed, but save-again reparse evidence is still required before Milestone 2 can be treated as fully closed at the storage-validation level
+- permanent PC storage remains preserved canonical inherited state under Policy A and is not yet serialized semantically
+- broader event-state serialization remains deferred to Milestone 3 and later

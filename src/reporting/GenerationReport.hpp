@@ -16,19 +16,35 @@ struct RangeLedgerEntry {
 };
 
 struct GenerationReport {
+    std::string generatorVersion;
+    std::string targetJsonPath;
+    std::string targetSourceSha256;
     std::string profileId;
     std::string templatePath;
     std::string templateSha256;
+    std::string outputPath;
+    std::string outputSha256;
+    std::string dummyBoxPolicy;
     bool physicalImageIgnored = false;
+    std::size_t outputSize = 0;
     std::vector<RangeLedgerEntry> ranges;
+    std::vector<std::string> fieldsWritten;
     std::vector<std::string> warnings;
 
     nlohmann::json ToJson() const {
         nlohmann::json json;
+        json["generatorVersion"] = generatorVersion;
+        json["targetJsonPath"] = targetJsonPath;
+        json["targetSourceSha256"] = targetSourceSha256;
         json["profileId"] = profileId;
         json["templatePath"] = templatePath;
         json["templateSha256"] = templateSha256;
+        json["outputPath"] = outputPath;
+        json["outputSha256"] = outputSha256;
+        json["outputSize"] = outputSize;
+        json["dummyBoxPolicy"] = dummyBoxPolicy;
         json["physicalImageIgnored"] = physicalImageIgnored;
+        json["fieldsWritten"] = fieldsWritten;
         json["warnings"] = warnings;
         json["ranges"] = nlohmann::json::array();
         for (const auto& range : ranges) {

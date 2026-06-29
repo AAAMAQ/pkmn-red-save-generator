@@ -87,13 +87,14 @@ Deferred cleanup:
 ### Generation
 
 - `RedSaveInitializer`
-- `CoreStateSerializer` (deferred)
-- `RedSaveGenerator` (deferred)
+- `MinimalStateContract`
+- `CoreStateSerializer`
+- `MinimalSaveGenerator`
 
 ### Integrity
 
 - `ChecksumAlgorithms`
-- `MainChecksumWriter` (deferred)
+- `MainChecksumWriter`
 - `BankChecksumWriter` (deferred)
 - `IntegrityValidator`
 
@@ -127,3 +128,8 @@ target .red.json
 - Unknown and runtime-heavy ranges must have explicit policy.
 - Coverage and provenance are first-class outputs, not optional notes.
 - Milestone 1 is intentionally foundation-only; no production serializer beyond deterministic template copying is considered complete.
+- Milestone 2 extends that foundation with a narrow minimal generator:
+  - trainer and core identity writes
+  - canonical empty party, Pokédex, bag, PC items, daycare, and Hall of Fame clears
+  - regenerated main checksum
+  - explicit Policy A preservation of untouched permanent storage banks until storage serialization is implemented

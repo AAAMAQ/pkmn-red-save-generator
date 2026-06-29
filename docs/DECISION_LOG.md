@@ -56,3 +56,13 @@
 
 - Decision: baseline analysis flags all-`0xFF` permanent box leading bytes as suspicious, alongside the previously documented decode-level concerns
 - Reason: the committed dummy must not be silently trusted when permanent storage appears stale, uninitialized, or semantically inconsistent
+
+### D-012: Milestone 2 preserves permanent box banks as canonical unused state
+
+- Decision: Milestone 2 uses Policy A for the committed 9-second dummy and preserves the permanent PC box banks and bank 2 and 3 all-box checksum bytes unchanged in generated working copies
+- Reason: Save Genie source, `pret/pokered` save flow research, and direct template inspection support treating these ranges as canonical unused early-game state while storage serialization remains out of scope
+
+### D-013: Milestone 2 supports one verified safe baseline location only
+
+- Decision: Milestone 2 generation accepts only the verified baseline Red's house second-floor location from semantic input
+- Reason: minimal generation must stay within locations proven safe by the committed dummy, Save Genie decode, and planned emulator validation rather than guessing arbitrary coordinates

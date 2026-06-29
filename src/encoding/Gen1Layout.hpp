@@ -8,6 +8,9 @@ namespace pkmn::savegen::encoding {
 struct Gen1Layout {
     static constexpr std::size_t ExpectedSaveSize = 0x8000;
 
+    static constexpr std::size_t HallOfFameOff = 0x0598;
+    static constexpr std::size_t HallOfFameLen = 0x12C0;
+
     static constexpr std::size_t TrainerNameOff = 0x2598;
     static constexpr std::size_t TrainerNameLen = 11;
     static constexpr std::size_t PokedexOwnedOff = 0x25A3;
@@ -28,9 +31,13 @@ struct Gen1Layout {
     static constexpr std::size_t MapIdOff = 0x260A;
     static constexpr std::size_t YCoordOff = 0x260D;
     static constexpr std::size_t XCoordOff = 0x260E;
+    static constexpr std::size_t YBlockCoordOff = 0x260F;
+    static constexpr std::size_t XBlockCoordOff = 0x2610;
+    static constexpr std::size_t PreviousMapOff = 0x2611;
     static constexpr std::size_t PCItemBoxCountOff = 0x27E6;
     static constexpr std::size_t PCItemBoxPairsOff = 0x27E7;
     static constexpr int PCItemBoxMaxPairs = 50;
+    static constexpr std::size_t PCItemBoxSerializedLen = 1 + (PCItemBoxMaxPairs * 2) + 1;
     static constexpr std::size_t CurrentBoxByteOff = 0x284C;
     static constexpr std::size_t HallOfFameRecordCountOff = 0x284E;
     static constexpr std::size_t CoinsOff = 0x2850;
@@ -41,8 +48,19 @@ struct Gen1Layout {
     static constexpr std::size_t VisitedTownsOff = 0x29B7;
     static constexpr int VisitedTownsUsedBits = 11;
     static constexpr std::size_t PlayHoursOff = 0x2CED;
+    static constexpr std::size_t PlayMaxedOff = 0x2CEE;
     static constexpr std::size_t PlayMinutesOff = 0x2CEF;
     static constexpr std::size_t PlaySecondsOff = 0x2CF0;
+    static constexpr std::size_t PlayFramesOff = 0x2CF1;
+    static constexpr std::size_t DaycareInUseOff = 0x2CF4;
+    static constexpr std::size_t DaycareNicknameOff = 0x2CF5;
+    static constexpr std::size_t DaycareOTNameOff = 0x2D00;
+    static constexpr std::size_t DaycareBoxMonOff = 0x2D0B;
+    static constexpr std::size_t DaycareLen = 0x38;
+    static constexpr std::size_t PartyBase = 0x2F2C;
+    static constexpr std::size_t PartyBlockLen = 0x0194;
+    static constexpr std::size_t PartyCountOff = PartyBase + 0x00;
+    static constexpr std::size_t PartySpeciesOff = PartyBase + 0x01;
     static constexpr std::size_t CurrentBoxCacheOff = 0x30C0;
     static constexpr std::size_t CurrentBoxCacheLen = 0x0462;
     static constexpr int BoxMaxMons = 20;
