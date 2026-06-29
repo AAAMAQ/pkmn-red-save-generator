@@ -1,6 +1,6 @@
 # Validation Plan
 
-Milestone 0 defines the validation pipeline; it does not yet implement the full generator.
+Milestone 1 implements the first validation layers. Full generation validation remains incomplete until Milestones 2 and 3.
 
 ## Stage 1: Input Validation
 
@@ -12,6 +12,7 @@ Milestone 0 defines the validation pipeline; it does not yet implement the full 
 - array capacities
 - name encodability policy
 - contradictory-state rejection where known
+- implemented in Milestone 1 via `RedJsonReader`, `RedJsonValidator`, and `RedSemanticStateBuilder`
 
 ## Stage 2: Template Validation
 
@@ -21,6 +22,8 @@ Milestone 0 defines the validation pipeline; it does not yet implement the full 
 - supported target profile
 - no output-path collision with template path
 - template immutability checks before and after generation
+- suspicious baseline analysis for current-box cache and permanent-box state
+- implemented in Milestone 1 via `TemplateProfile`, `CanonicalTemplateLoader`, `TemplateBaselineAnalyzer`, and `TemplateValidator`
 
 ## Stage 3: Generation Validation
 
@@ -29,6 +32,10 @@ Milestone 0 defines the validation pipeline; it does not yet implement the full 
 - supported sections written deterministically
 - duplicate/cache synchronization completed
 - checksum regeneration completed
+- partially implemented in Milestone 1:
+  - `physicalImage` is stripped before semantic-state construction
+  - low-level bounded writers exist
+  - deterministic template-copy initialization exists
 
 ## Stage 4: Structural Validation
 
@@ -83,6 +90,11 @@ These tests are mandatory once generation begins:
 
 The standalone dummy template is not part of this prohibition. The isolation rule applies to the raw image embedded in the target `.red.json`.
 
+Milestone 1 proof:
+
+- the semantic-state builder receives only a sanitized JSON document
+- tests confirm identical semantic state when `physicalImage` is removed, corrupted, or replaced
+
 ## Dummy Immutability Test Strategy
 
 - hash dummy template before generation
@@ -109,4 +121,4 @@ The standalone dummy template is not part of this prohibition. The isolation rul
 
 ## Current Milestone Limitation
 
-Milestone 0 stops at audit, contracts, and planning. No generator implementation has been validated yet.
+Milestone 1 stops at foundation work. There is still no accepted minimal save generator, no checksum writer, no Save Genie reparse pipeline for generated output, and no emulator validation for generated saves.

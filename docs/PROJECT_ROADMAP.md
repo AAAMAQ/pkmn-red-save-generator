@@ -17,6 +17,9 @@
 - add physical-image isolation guardrails
 - add primitive encoders and low-level writers
 - add template loader and validator
+- add CMake build and doctest test target
+- keep Xcode as a first-class build path
+- status: implemented
 
 ## Milestone 2: Minimal Valid Generated Save
 
@@ -25,6 +28,7 @@
 - write trainer identity and minimal safe core state
 - regenerate main checksum
 - confirm Save Genie reparse and emulator load
+- resolve suspicious permanent-box/current-box inheritance in the working buffer before acceptance
 
 ## Milestone 3: Core Gameplay State
 
@@ -35,6 +39,8 @@
 - bag inventory
 - PC item storage
 - core semantic comparison output
+- conservative persistent event subset
+- contamination and determinism tests
 
 ## Milestone 4: Party Serialization
 

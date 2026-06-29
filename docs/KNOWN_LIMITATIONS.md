@@ -2,9 +2,9 @@
 
 ## Repository State
 
-- The project is still at Milestone 0.
-- No generator implementation exists yet.
-- The current `main.cpp` is only a placeholder.
+- The project is only complete through Milestone 1 foundation work.
+- No accepted save serializer exists yet beyond deterministic template copying.
+- The CLI currently supports validation and profile inspection, not save generation.
 
 ## Dummy Template Limitations
 
@@ -21,7 +21,8 @@
 
 ## Validation Limitations
 
-- No semantic generator output exists yet to compare.
+- No generated `.sav` output has been accepted yet.
+- No Save Genie reparse of generator-produced output has been completed.
 - No emulator validation has been run for generated saves.
 - No save-again validation has been run.
 

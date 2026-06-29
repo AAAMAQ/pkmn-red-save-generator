@@ -1,15 +1,5 @@
-//
-//  main.cpp
-//  Pkmn Red Save Generator
-//
-//  Created by MAQ on 24/06/2026.
-//
+#include "../src/cli/Application.hpp"
 
-#include <iostream>
-
-int main(int argc, const char * argv[]) {
-    int x;
-    std::cin>> x;
-    std::cout << "Hello, World!\n";
-    return 0;
+int main(int argc, const char* argv[]) {
+    return pkmn::savegen::cli::Run(argc, argv);
 }

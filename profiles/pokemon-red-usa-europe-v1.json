@@ -1,0 +1,31 @@
+{
+  "profileId": "pokemon-red-usa-europe-v1",
+  "targetGame": "Pokemon Red",
+  "regionAssumption": "USA-Europe",
+  "revisionAssumption": "unproven",
+  "saveSize": 32768,
+  "templateRelativePath": "Dummy Save/Pokemon - Red Version (USA, Europe) (SGB Enhanced).sav",
+  "templateSha256": "248bc35328be435b16b47e2bb87c4e9732c2b5c92a95450839ed4619f74eb2e7",
+  "supportedSchemaVersions": [
+    "0.1.0"
+  ],
+  "mainChecksumExpectation": {
+    "requiredValid": true
+  },
+  "bank2ChecksumExpectation": {
+    "requiredValid": false,
+    "statusLabel": "known-invalid-template-risk"
+  },
+  "bank3ChecksumExpectation": {
+    "requiredValid": false,
+    "statusLabel": "known-invalid-template-risk"
+  },
+  "outputLengthPolicy": "standard_0x8000_only",
+  "trailingDataPolicy": "reject_for_generation",
+  "knownLimitations": [
+    "Committed dummy is a canonical template candidate, not a trusted clean semantic baseline.",
+    "Permanent boxes decode as full and require explicit risk handling before Milestone 2 acceptance.",
+    "Current-box cache differs from permanent box 1.",
+    "Bank 2 and Bank 3 all-box checksums are intentionally recorded as invalid in this profile."
+  ]
+}

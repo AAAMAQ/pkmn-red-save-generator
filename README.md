@@ -1,6 +1,6 @@
 # Pkmn Red Save Generator
 
-Status: Milestone 0 repository initialization and audit only.
+Status: Milestone 1 foundation implemented.
 
 This project generates a new Pokemon Red save from semantic `.red.json` data. It does not use the target `.red.json` `physicalImage` to reconstruct the original binary. Output is intended to be gameplay-equivalent and structurally valid, not byte-identical to the source save.
 
@@ -26,9 +26,9 @@ The prerequisite Save Genie remains the trusted Red-side research and parsing co
 ## Current Repository State
 
 - Git repository initialized at the generator root on 2026-06-24.
-- Existing Xcode project preserved in place.
-- No generator serializer has been implemented yet.
-- Milestone 0 documentation, audit notes, and safety boundaries are tracked under `docs/`.
+- Existing Xcode project preserved and now builds against the shared source tree.
+- A first-class CMake build and doctest-based test target now exist alongside Xcode.
+- Milestone 1 foundation code, validation commands, and safety boundaries are tracked under `src/`, `tests/`, `profiles/`, and `docs/`.
 
 ## Key Milestone 0 Findings
 
@@ -53,18 +53,44 @@ This means the dummy cannot be treated as a harmless blank save. Any template-ba
 - `Dummy Save/`
   - Canonical template candidate and companion audit material
 - `Pkmn Red Save Generator/`
-  - Existing Xcode source folder, currently only a placeholder `main.cpp`
+  - Xcode entrypoint folder with the CLI `main.cpp`
 - `Pkmn Red Save Generator.xcodeproj/`
   - Existing Xcode project metadata
-- `rescource/`
-  - Preserved reference material from earlier research; left untouched during Milestone 0
+- `src/`
+  - Milestone 1 source modules for CLI, input, model, template, encoding, integrity, generation, comparison, and reporting
+- `tests/`
+  - doctest-based unit and integration coverage for Milestone 1
+- `profiles/`
+  - machine-readable supported target profiles
+- `third_party/`
+  - vendored `nlohmann/json` and `doctest`
 - `docs/`
-  - Milestone 0 scope, audit, policy, and roadmap documents
+  - scope, audit, policy, roadmap, and execution-plan documents
+
+## Milestone 1 Capabilities
+
+- `validate-input --input <target.red.json>`
+  - validates supported schema and semantic sections
+  - strips the target `physicalImage` before semantic-state construction
+- `validate-template --template <dummy.sav> --profile <profile.json>`
+  - validates size, hash, checksum expectations, and suspicious baseline traits
+- `show-profile --profile <profile.json>`
+  - prints the active supported target profile
+
+## Build Paths
+
+- CMake:
+  - `cmake -S . -B build`
+  - `cmake --build build`
+  - `ctest --test-dir build --output-on-failure`
+- Xcode:
+  - open `Pkmn Red Save Generator.xcodeproj`
+  - or build from the command line with code signing disabled for local CLI builds
 
 ## Next Milestones
 
-- Milestone 1: input model, physical-image isolation, primitive encoders, template loader
 - Milestone 2: minimal valid generated save
-- Milestone 3+: progressive semantic coverage, independent reparse, emulator validation, save-again validation
+- Milestone 3: core gameplay state, semantic comparison, contamination checks, determinism checks
+- Later milestones: party, PC storage, extended events, emulator automation, and release hardening
 
 See `docs/PROJECT_ROADMAP.md` for the detailed roadmap.

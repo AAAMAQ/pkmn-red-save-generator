@@ -1,0 +1,67 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+
+namespace pkmn::savegen::encoding {
+
+struct Gen1Layout {
+    static constexpr std::size_t ExpectedSaveSize = 0x8000;
+
+    static constexpr std::size_t TrainerNameOff = 0x2598;
+    static constexpr std::size_t TrainerNameLen = 11;
+    static constexpr std::size_t PokedexOwnedOff = 0x25A3;
+    static constexpr std::size_t PokedexSeenOff = 0x25B6;
+    static constexpr std::size_t PokedexBitsLen = 0x13;
+    static constexpr std::size_t BagItemsCountOff = 0x25C9;
+    static constexpr std::size_t BagItemsPairsOff = 0x25CA;
+    static constexpr int BagItemsMaxPairs = 20;
+    static constexpr std::size_t MoneyOff = 0x25F3;
+    static constexpr std::size_t RivalNameOff = 0x25F6;
+    static constexpr std::size_t RivalNameLen = 11;
+    static constexpr std::size_t OptionsOff = 0x2601;
+    static constexpr std::size_t BadgesOff = 0x2602;
+    static constexpr std::size_t BadgesMirrorOff = 0x29D6;
+    static constexpr std::size_t LetterDelayOff = 0x2604;
+    static constexpr std::size_t TrainerIdOff = 0x2605;
+    static constexpr std::size_t ContrastOff = 0x2609;
+    static constexpr std::size_t MapIdOff = 0x260A;
+    static constexpr std::size_t YCoordOff = 0x260D;
+    static constexpr std::size_t XCoordOff = 0x260E;
+    static constexpr std::size_t PCItemBoxCountOff = 0x27E6;
+    static constexpr std::size_t PCItemBoxPairsOff = 0x27E7;
+    static constexpr int PCItemBoxMaxPairs = 50;
+    static constexpr std::size_t CurrentBoxByteOff = 0x284C;
+    static constexpr std::size_t HallOfFameRecordCountOff = 0x284E;
+    static constexpr std::size_t CoinsOff = 0x2850;
+    static constexpr std::size_t HiddenItemsOff = 0x299C;
+    static constexpr int HiddenItemsUsedBits = 54;
+    static constexpr std::size_t HiddenCoinsOff = 0x29AA;
+    static constexpr int HiddenCoinsUsedBits = 12;
+    static constexpr std::size_t VisitedTownsOff = 0x29B7;
+    static constexpr int VisitedTownsUsedBits = 11;
+    static constexpr std::size_t PlayHoursOff = 0x2CED;
+    static constexpr std::size_t PlayMinutesOff = 0x2CEF;
+    static constexpr std::size_t PlaySecondsOff = 0x2CF0;
+    static constexpr std::size_t CurrentBoxCacheOff = 0x30C0;
+    static constexpr std::size_t CurrentBoxCacheLen = 0x0462;
+    static constexpr int BoxMaxMons = 20;
+    static constexpr std::size_t BoxBlockSize = 0x0462;
+    static constexpr std::size_t BoxCountRel = 0x0000;
+    static constexpr std::size_t MainChecksumStart = 0x2598;
+    static constexpr std::size_t MainChecksumEndInclusive = 0x3522;
+    static constexpr std::size_t MainChecksumOff = 0x3523;
+    static constexpr std::size_t Bank2AllChecksumOff = 0x5A4C;
+    static constexpr std::size_t Bank2PayloadStart = 0x4000;
+    static constexpr std::size_t Bank2PayloadEndInclusive = 0x5A4B;
+    static constexpr std::size_t Bank3AllChecksumOff = 0x7A4C;
+    static constexpr std::size_t Bank3PayloadStart = 0x6000;
+    static constexpr std::size_t Bank3PayloadEndInclusive = 0x7A4B;
+
+    static constexpr std::array<std::size_t, 12> PermanentBoxOffsets = {
+        0x4000, 0x4462, 0x48C4, 0x4D26, 0x5188, 0x55EA,
+        0x6000, 0x6462, 0x68C4, 0x6D26, 0x7188, 0x75EA
+    };
+};
+
+}  // namespace pkmn::savegen::encoding

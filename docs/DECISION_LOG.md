@@ -41,3 +41,18 @@
 
 - Decision: document the dummy as unsafe for unqualified full-save inheritance
 - Reason: invalid box-bank checksums and full invalid-looking permanent boxes create high contamination risk
+
+### D-009: Keep Xcode and CMake as equal Milestone 1 build paths
+
+- Decision: preserve the Xcode CLI target and add a top-level CMake build
+- Reason: the project needs a native Apple development path plus an auditable command-line test path
+
+### D-010: Strip `physicalImage` before semantic-state construction
+
+- Decision: remove the target JSON `physicalImage` from the document before building `RedSemanticState`
+- Reason: complete isolation is easier to prove when low-level generator code never receives the raw image field at all
+
+### D-011: Treat `0xFF`-filled permanent box leading bytes as suspicious template state
+
+- Decision: baseline analysis flags all-`0xFF` permanent box leading bytes as suspicious, alongside the previously documented decode-level concerns
+- Reason: the committed dummy must not be silently trusted when permanent storage appears stale, uninitialized, or semantically inconsistent

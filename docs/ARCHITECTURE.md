@@ -1,41 +1,56 @@
 # Architecture
 
-## Milestone 0 Status
+## Milestone 1 Status
 
-The repository currently preserves the existing Xcode skeleton:
+The repository now uses a shared source layout while preserving the existing Xcode CLI target:
 
 - `Pkmn Red Save Generator/main.cpp`
 - `Pkmn Red Save Generator.xcodeproj`
+- `src/`
+- `tests/`
+- `profiles/`
+- `third_party/`
 
-No source reorganization was performed during Milestone 0. This was intentional so repository setup, audit work, and path stability could happen before build-system changes.
+The entrypoint remains inside the original Xcode folder, but real logic now lives under `src/` so both Xcode and CMake build the same implementation.
 
-## Safe Reorganization Assessment
-
-The current layout is acceptable for initialization, but it is not a good long-term architecture for a semantic generator. A future safe reorganization should move the codebase toward a source layout such as:
+## Active Source Layout
 
 ```text
 src/
   cli/
-  input/
-  model/
-  encoding/
-  template/
-  generation/
-  integrity/
   comparison/
+  encoding/
+  generation/
+  input/
+  integrity/
+  model/
   reporting/
+  template/
 tests/
-fixtures/
-docs/
+profiles/
+third_party/
 ```
 
-Recommended Milestone 1 reorganization:
+## Build Strategy
 
-1. Keep the existing Xcode project.
-2. Introduce `src/` and `tests/` under the repository root.
-3. Move placeholder `main.cpp` into `src/cli/` only after the Xcode project is updated safely.
-4. Leave `Dummy Save/` untouched as a fixed audit resource directory.
-5. Leave `rescource/` untouched during early bring-up; reassess later whether to move it into a documented `references/` area.
+- Primary language standard: C++20
+- Build paths:
+  - existing Xcode CLI target
+  - top-level CMake build
+- Dependencies:
+  - vendored `nlohmann/json`
+  - vendored `doctest`
+  - `CommonCrypto` for SHA-256 on Apple platforms
+
+## Safe Reorganization Assessment
+
+The Milestone 1 layout is acceptable for foundation work and keeps Xcode compatibility intact. Further reorganization should remain incremental rather than replacing the project structure wholesale.
+
+Deferred cleanup:
+
+- decide later whether the Xcode entrypoint should move into `src/cli/`
+- decide later whether `rescource/` should be renamed or archived
+- add dedicated fixture directories only when Milestone 2+ local test inputs are approved
 
 ## Proposed Runtime Components
 
@@ -43,20 +58,16 @@ Recommended Milestone 1 reorganization:
 
 - `RedJsonReader`
 - `RedJsonValidator`
-- `InputFieldContract`
-- `TargetProfileResolver`
+- `PhysicalImageIsolationGuard`
 
 ### Semantic Model
 
 - `RedSemanticState`
-- `TrainerState`
+- `IdentityState`
+- `CoreState`
 - `PokedexState`
 - `InventoryState`
-- `PartyState`
-- `StorageState`
-- `DaycareState`
-- `HallOfFameState`
-- `EventState`
+- `EventSubsetState`
 
 ### Encoding And Primitive Rules
 
@@ -67,35 +78,28 @@ Recommended Milestone 1 reorganization:
 
 ### Template Layer
 
-- `DummySaveLoader`
+- `CanonicalTemplateLoader`
 - `TemplateProfile`
 - `TemplateValidator`
+- `TemplateBaselineAnalyzer`
 - `WorkingSaveBuffer`
 
 ### Generation
 
-- `TrainerSerializer`
-- `InventorySerializer`
-- `PokedexSerializer`
-- `PartySerializer`
-- `BoxSerializer`
-- `DaycareSerializer`
-- `HallOfFameSerializer`
-- `EventSerializer`
-- `CacheSynchronizer`
-- `RedSaveGenerator`
+- `RedSaveInitializer`
+- `CoreStateSerializer` (deferred)
+- `RedSaveGenerator` (deferred)
 
 ### Integrity
 
-- `MainChecksum`
-- `BankChecksum`
-- `BoxChecksum`
+- `ChecksumAlgorithms`
+- `MainChecksumWriter` (deferred)
+- `BankChecksumWriter` (deferred)
 - `IntegrityValidator`
 
 ### Verification And Reporting
 
 - `SemanticComparator`
-- `EquivalenceReport`
 - `GenerationReport`
 
 ## Data Flow
@@ -103,6 +107,7 @@ Recommended Milestone 1 reorganization:
 ```text
 target .red.json
 -> schema/profile validation
+-> physicalImage isolation
 -> semantic-only model extraction
 -> canonical dummy template validation
 -> in-memory working buffer copy
@@ -121,3 +126,4 @@ target .red.json
 - The standalone dummy `.sav` may be loaded as a template resource only after profile and immutability checks.
 - Unknown and runtime-heavy ranges must have explicit policy.
 - Coverage and provenance are first-class outputs, not optional notes.
+- Milestone 1 is intentionally foundation-only; no production serializer beyond deterministic template copying is considered complete.
