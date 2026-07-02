@@ -108,3 +108,102 @@
 - No immediate corruption warning appeared on load.
 - This is sufficient to keep Policy A provisionally for Milestone 2 loadability.
 - Permanent storage bank behavior is still not fully validated because no post-save `.sav` reparse has been supplied yet.
+
+### Milestone 3 reparse findings
+
+- A Milestone 3 generated save from the dummy semantic input reparsed successfully with Save Genie.
+- The reparsed Milestone 3 dummy-based output preserved:
+  - trainer `RED`
+  - rival `BLUE`
+  - trainer ID `60066`
+  - money `3000`
+  - coins `0`
+  - no badges
+  - empty carried bag
+  - one `POTION x1` in PC item storage
+  - empty Pokédex
+  - empty conservative event subset
+- A deliberately different contamination fixture also reparsed successfully with Save Genie.
+- The reparsed contamination output confirmed:
+  - trainer `ASH`
+  - rival `GARY`
+  - trainer ID `12345`
+  - money `654321`
+  - coins `321`
+  - badges bitfield `0xA5`
+  - Pokédex owned `2`, seen `3`
+  - bag items `POTION x5`, `ANTIDOTE x2`
+  - PC items `POKE BALL x10`, `ESCAPE ROPE x1`
+  - hidden items collected indices `1` and `6`
+  - hidden coins collected indices `0` and `11`
+  - visited towns indices `0`, `2`, and `10`
+- The generator-side `compare-semantics` command reported `PASS` for both the dummy-based reparse and the contamination-fixture reparse.
+
+### Milestone 3 local working-fixture findings
+
+- A private local-only `.red.json` fixture was validated successfully against schema `0.1.0`.
+- The fixture contained supported owned fields for:
+  - trainer and rival identity
+  - trainer ID
+  - options
+  - playtime
+  - money and coins
+  - badges
+  - Pokedex seen and owned bitfields
+  - bag inventory
+  - PC item inventory
+  - visited towns
+  - hidden items
+  - hidden coins
+- The same fixture also contained unsupported non-empty deferred state, including:
+  - a non-empty party
+  - occupied permanent PC boxes
+  - non-empty Hall of Fame data
+  - broad story and world-state progress
+- Direct generation from the full fixture was rejected conservatively because the source location was outside the proven Milestone 3 safe baseline.
+- A local-only projection fixture was then derived from supported semantic fields only:
+  - it omitted the target `physicalImage`
+  - it excluded unsupported deferred sections instead of silently claiming support
+  - it canonicalized location to the proven Red's house second-floor baseline
+
+### Milestone 3 physical-image isolation and semantic proof
+
+- The projected local fixture generated successfully.
+- A variant of the same projected fixture with a replaced `physicalImage` produced a byte-identical `.sav`.
+- The generated output SHA-256 was `aec4dc3ea7de1f9de8d1315c38f2216d4b06313ccc79612396fe954762118819`.
+- Independent Save Genie reparse of that generated save confirmed:
+  - trainer `GOON`
+  - rival `KILLUA`
+  - trainer ID `257`
+  - money `589999`
+  - coins `999`
+  - badges all set
+  - playtime `56:20:07`
+  - location `MapID=38`, `X=3`, `Y=6`
+  - Pokedex seen `151`, owned `151`
+  - bag inventory count `19`
+  - PC item inventory count `48`
+  - projected visited-towns, hidden-item, and hidden-coin bitfields
+- Generator-side `compare-semantics` reported `PASS` for the projected fixture reparse.
+- No owned semantic field was observed leaking from the dummy template into the projected output.
+
+### Milestone 3 emulator save-again findings
+
+- The generated projected save loaded successfully in emulator testing.
+- `Continue` appeared.
+- Trainer information, money, coins, badges, playtime, location, bag contents, and PC item contents all displayed correctly in-game.
+- The game saved successfully through the in-game save menu.
+- Direct in-game Pokedex UI verification was not performed, because the UI was not accessible consistently from the currently serialized event/progression subset.
+- Pokedex verification therefore remains proven by Save Genie reparse and semantic comparison, not by direct UI inspection.
+- The emulator wrote its save back to the same file path used for the generated output.
+- That post-save file was copied immediately to a stable local validation path and hashed.
+- The post-save file remained `32768` bytes with SHA-256 `aec4dc3ea7de1f9de8d1315c38f2216d4b06313ccc79612396fe954762118819`.
+- Direct binary comparison against the preserved pristine pre-emulator copy showed no changed bytes.
+- Save Genie reparse of the post-save file confirmed:
+  - valid main checksum
+  - unchanged invalid bank 2 all-box checksum
+  - unchanged invalid bank 3 all-box checksum
+  - preserved Milestone 3 owned semantic fields
+  - unchanged empty current-box cache
+  - unchanged suspicious permanent-box decode state under Policy A
+- This is sufficient to keep Policy A for the current Milestone 3 load/save-again path without expanding it into a blanket claim about future PC-storage interaction safety.

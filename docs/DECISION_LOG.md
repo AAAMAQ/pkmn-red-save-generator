@@ -66,3 +66,28 @@
 
 - Decision: Milestone 2 generation accepts only the verified baseline Red's house second-floor location from semantic input
 - Reason: minimal generation must stay within locations proven safe by the committed dummy, Save Genie decode, and planned emulator validation rather than guessing arbitrary coordinates
+
+### D-014: Milestone 3 keeps Policy A provisionally for permanent box banks
+
+- Decision: Milestone 3 continues preserving the committed dummy permanent storage banks and invalid bank 2 and 3 all-box checksums unchanged
+- Reason: emulator load validation passed, but there is still no post-save reparse evidence proving how those untouched storage banks behave after an in-game save cycle
+
+### D-015: Milestone 3 rejects unsupported non-empty deferred states
+
+- Decision: non-empty party, occupied daycare, and non-empty Hall of Fame inputs now fail generation instead of being silently cleared
+- Reason: rejecting unsupported semantic state is safer than hiding mismatches behind canonical empty defaults
+
+### D-016: Milestone 3 owns badges, Pokedex, item inventories, and a conservative event subset
+
+- Decision: expand the generator to serialize badges, the badge mirror, Pokedex owned and seen bitfields, bag inventory, PC item inventory, and the visited-towns and hidden-item and hidden-coin bitfields
+- Reason: these fields are well mapped by Save Genie research, fit inside the checksum-covered bank 1 semantic region, and materially reduce dummy-state contamination risk without forcing premature party or box serialization
+
+### D-017: Keep Policy A only for the validated no-storage-interaction flow
+
+- Decision: retain Policy A after Milestone 3 for generated saves that preserve permanent PC storage unchanged and have been validated through load and save-again without using PC storage
+- Reason: the post-save emulator file remained byte-identical, reparsed cleanly, and preserved owned semantics, but this evidence still does not prove that the untouched permanent boxes are semantically safe once storage interaction itself enters scope
+
+### D-018: Record Pokedex verification as semantic, not direct UI, proof
+
+- Decision: claim Milestone 3 Pokedex verification through Save Genie reparse and semantic comparison only
+- Reason: the generated save preserved the owned and seen bitfields, but the in-game Pokedex UI was not directly inspected because broader progression gating remains outside the current event subset

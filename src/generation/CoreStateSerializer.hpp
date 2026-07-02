@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "../encoding/BcdEncoder.hpp"
+#include "../encoding/BitfieldWriter.hpp"
 #include "../encoding/Gen1Layout.hpp"
 #include "../encoding/Gen1TextEncoder.hpp"
 #include "../encoding/PrimitiveWriter.hpp"
@@ -95,16 +97,29 @@ public:
             working.bytes, encoding::Gen1Layout::YBlockCoordOff, contract.supportedLocation.yBlock);
         encoding::PrimitiveWriter::WriteU8(
             working.bytes, encoding::Gen1Layout::XBlockCoordOff, contract.supportedLocation.xBlock);
+        encoding::PrimitiveWriter::WriteU8(
+            working.bytes, encoding::Gen1Layout::PreviousMapOff, contract.supportedLocation.previousMap);
         MarkRange(working.report,
                   encoding::Gen1Layout::MapIdOff,
-                  encoding::Gen1Layout::XBlockCoordOff,
+                  encoding::Gen1Layout::PreviousMapOff,
                   "overwritten-from-target",
-                  "core.safeLocation using Milestone 2 supported baseline mapping");
+                  "core.safeLocation using supported baseline mapping");
 
-        WriteZeroBadges(working);
-        ClearPokedex(working);
-        ClearBagItems(working);
-        ClearPcItems(working);
+        WriteBadges(working, contract.expectedSemantic.core.badgesBitfield);
+        WritePokedex(working, contract.expectedSemantic.pokedex);
+        WriteItemList(working,
+                      encoding::Gen1Layout::BagItemsCountOff,
+                      encoding::Gen1Layout::BagItemsPairsOff,
+                      encoding::Gen1Layout::BagItemsMaxPairs,
+                      contract.expectedSemantic.inventory.bagItems,
+                      "inventory.bagItems");
+        WriteItemList(working,
+                      encoding::Gen1Layout::PCItemBoxCountOff,
+                      encoding::Gen1Layout::PCItemBoxPairsOff,
+                      encoding::Gen1Layout::PCItemBoxMaxPairs,
+                      contract.expectedSemantic.inventory.pcItems,
+                      "inventory.pcItems");
+        WriteEventSubset(working, contract.expectedSemantic.eventSubset);
         ClearParty(working);
         ClearDaycare(working);
         ClearHallOfFame(working);
@@ -138,54 +153,82 @@ private:
                   static_cast<std::uint8_t>(0));
     }
 
-    static void WriteZeroBadges(WorkingSaveBuffer& working) {
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::BadgesOff, 0);
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::BadgesMirrorOff, 0);
+    static void WriteBadges(WorkingSaveBuffer& working, std::uint8_t badgesBitfield) {
+        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::BadgesOff, badgesBitfield);
+        encoding::PrimitiveWriter::WriteU8(
+            working.bytes, encoding::Gen1Layout::BadgesMirrorOff, badgesBitfield);
         MarkRange(working.report,
                   encoding::Gen1Layout::BadgesOff,
                   encoding::Gen1Layout::BadgesOff,
-                  "intentionally-cleared",
-                  "core.badgesBitfield canonical default");
+                  "overwritten-from-target",
+                  "core.badgesBitfield");
         MarkRange(working.report,
                   encoding::Gen1Layout::BadgesMirrorOff,
                   encoding::Gen1Layout::BadgesMirrorOff,
                   "synchronized-duplicate-cache",
-                  "core.badges mirror synchronized to canonical default");
+                  "core.badges mirror synchronized");
     }
 
-    static void ClearPokedex(WorkingSaveBuffer& working) {
+    static void WritePokedex(WorkingSaveBuffer& working, const model::PokedexState& pokedex) {
         ZeroRange(working.bytes, encoding::Gen1Layout::PokedexOwnedOff, encoding::Gen1Layout::PokedexBitsLen);
         ZeroRange(working.bytes, encoding::Gen1Layout::PokedexSeenOff, encoding::Gen1Layout::PokedexBitsLen);
+        WriteBits(working.bytes, encoding::Gen1Layout::PokedexOwnedOff, pokedex.owned);
+        WriteBits(working.bytes, encoding::Gen1Layout::PokedexSeenOff, pokedex.seen);
         MarkRange(working.report,
                   encoding::Gen1Layout::PokedexOwnedOff,
                   encoding::Gen1Layout::PokedexOwnedOff + encoding::Gen1Layout::PokedexBitsLen - 1,
-                  "intentionally-cleared",
-                  "empty Pokedex owned bitfield canonical default");
+                  "overwritten-from-target",
+                  "pokedex.owned bitfield");
         MarkRange(working.report,
                   encoding::Gen1Layout::PokedexSeenOff,
                   encoding::Gen1Layout::PokedexSeenOff + encoding::Gen1Layout::PokedexBitsLen - 1,
-                  "intentionally-cleared",
-                  "empty Pokedex seen bitfield canonical default");
+                  "overwritten-from-target",
+                  "pokedex.seen bitfield");
     }
 
-    static void ClearBagItems(WorkingSaveBuffer& working) {
-        ZeroRange(working.bytes, encoding::Gen1Layout::BagItemsCountOff, 1 + (encoding::Gen1Layout::BagItemsMaxPairs * 2) + 1);
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::BagItemsPairsOff, 0xFF);
+    static void WriteItemList(WorkingSaveBuffer& working,
+                              std::size_t countOffset,
+                              std::size_t pairsOffset,
+                              int maxPairs,
+                              const std::vector<model::InventoryItem>& items,
+                              const std::string& fieldName) {
+        const std::size_t serializedLen = 1 + (static_cast<std::size_t>(maxPairs) * 2U) + 1U;
+        ZeroRange(working.bytes, countOffset, serializedLen);
+        encoding::PrimitiveWriter::WriteU8(
+            working.bytes, countOffset, static_cast<std::uint8_t>(items.size()));
+
+        std::size_t cursor = pairsOffset;
+        for (const auto& item : items) {
+            encoding::PrimitiveWriter::WriteU8(working.bytes, cursor, item.id);
+            encoding::PrimitiveWriter::WriteU8(working.bytes, cursor + 1U, item.quantity);
+            cursor += 2U;
+        }
+        encoding::PrimitiveWriter::WriteU8(working.bytes, cursor, 0xFF);
+
         MarkRange(working.report,
-                  encoding::Gen1Layout::BagItemsCountOff,
-                  encoding::Gen1Layout::BagItemsCountOff + (1 + (encoding::Gen1Layout::BagItemsMaxPairs * 2)),
-                  "intentionally-cleared",
-                  "empty bag inventory canonical default");
+                  countOffset,
+                  countOffset + serializedLen - 1U,
+                  "overwritten-from-target",
+                  fieldName);
     }
 
-    static void ClearPcItems(WorkingSaveBuffer& working) {
-        ZeroRange(working.bytes, encoding::Gen1Layout::PCItemBoxCountOff, encoding::Gen1Layout::PCItemBoxSerializedLen);
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::PCItemBoxPairsOff, 0xFF);
-        MarkRange(working.report,
-                  encoding::Gen1Layout::PCItemBoxCountOff,
-                  encoding::Gen1Layout::PCItemBoxCountOff + encoding::Gen1Layout::PCItemBoxSerializedLen - 1,
-                  "intentionally-cleared",
-                  "empty PC item inventory canonical default");
+    static void WriteEventSubset(WorkingSaveBuffer& working,
+                                 const model::EventSubsetState& eventSubset) {
+        WriteBooleanBitfieldRange(working,
+                                  encoding::Gen1Layout::VisitedTownsOff,
+                                  encoding::Gen1Layout::VisitedTownsLen,
+                                  eventSubset.visitedTowns,
+                                  "eventSubset.visitedTowns");
+        WriteBooleanBitfieldRange(working,
+                                  encoding::Gen1Layout::HiddenItemsOff,
+                                  encoding::Gen1Layout::HiddenItemsLen,
+                                  eventSubset.hiddenItems,
+                                  "eventSubset.hiddenItems");
+        WriteBooleanBitfieldRange(working,
+                                  encoding::Gen1Layout::HiddenCoinsOff,
+                                  encoding::Gen1Layout::HiddenCoinsLen,
+                                  eventSubset.hiddenCoins,
+                                  "eventSubset.hiddenCoins");
     }
 
     static void ClearParty(WorkingSaveBuffer& working) {
@@ -220,6 +263,32 @@ private:
                   encoding::Gen1Layout::HallOfFameRecordCountOff,
                   "intentionally-cleared",
                   "Hall of Fame entry count canonical default");
+    }
+
+    static void WriteBits(std::vector<std::uint8_t>& bytes,
+                          std::size_t byteOffset,
+                          const std::vector<bool>& bits) {
+        for (std::size_t i = 0; i < bits.size(); ++i) {
+            encoding::BitfieldWriter::WriteBit(
+                bytes,
+                byteOffset + (i / 8U),
+                static_cast<std::uint8_t>(i % 8U),
+                bits[i]);
+        }
+    }
+
+    static void WriteBooleanBitfieldRange(WorkingSaveBuffer& working,
+                                          std::size_t byteOffset,
+                                          std::size_t byteLen,
+                                          const std::vector<bool>& bits,
+                                          const std::string& fieldName) {
+        ZeroRange(working.bytes, byteOffset, byteLen);
+        WriteBits(working.bytes, byteOffset, bits);
+        MarkRange(working.report,
+                  byteOffset,
+                  byteOffset + byteLen - 1U,
+                  "overwritten-from-target",
+                  fieldName);
     }
 
     static void MarkRange(reporting::GenerationReport& report,

@@ -202,17 +202,22 @@ private:
         }
 
         comparison::ComparisonOptions options;
-        options.compareEventSubset = false;
+        options.compareParty = false;
+        options.compareDaycare = false;
+        options.compareHallOfFame = false;
+        options.compareEventSubset = true;
         const auto differences = comparison::SemanticComparator::CompareOwnedFields(
             contract.expectedSemantic, actualSemantic.state, options);
         if (differences.empty()) {
-            std::cout << "Milestone 2 semantic comparison: PASS\n";
+            std::cout << "Milestone 3 semantic comparison: PASS\n";
             return 0;
         }
 
-        std::cout << "Milestone 2 semantic comparison: FAIL\n";
+        std::cout << "Milestone 3 semantic comparison: FAIL\n";
         for (const auto& difference : differences) {
-            std::cout << difference.fieldPath << ": expected=" << difference.expectedValue
+            std::cout << difference.fieldPath
+                      << " [" << comparison::SemanticComparator::CategoryLabel(difference.category) << "]"
+                      << ": expected=" << difference.expectedValue
                       << " actual=" << difference.actualValue << "\n";
         }
         return 1;

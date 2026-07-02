@@ -42,10 +42,13 @@ struct Gen1Layout {
     static constexpr std::size_t HallOfFameRecordCountOff = 0x284E;
     static constexpr std::size_t CoinsOff = 0x2850;
     static constexpr std::size_t HiddenItemsOff = 0x299C;
+    static constexpr std::size_t HiddenItemsLen = 7;
     static constexpr int HiddenItemsUsedBits = 54;
     static constexpr std::size_t HiddenCoinsOff = 0x29AA;
+    static constexpr std::size_t HiddenCoinsLen = 2;
     static constexpr int HiddenCoinsUsedBits = 12;
     static constexpr std::size_t VisitedTownsOff = 0x29B7;
+    static constexpr std::size_t VisitedTownsLen = 2;
     static constexpr int VisitedTownsUsedBits = 11;
     static constexpr std::size_t PlayHoursOff = 0x2CED;
     static constexpr std::size_t PlayMaxedOff = 0x2CEE;

@@ -62,6 +62,37 @@ void WriteJson(const std::filesystem::path& path, const nlohmann::json& json) {
     out << json.dump(2) << "\n";
 }
 
+std::vector<bool> ReadBits(const std::vector<std::uint8_t>& buffer,
+                           std::size_t byteOffset,
+                           std::size_t bitCount) {
+    std::vector<bool> bits;
+    bits.reserve(bitCount);
+    for (std::size_t i = 0; i < bitCount; ++i) {
+        bits.push_back(pkmn::savegen::encoding::BitfieldWriter::ReadBit(
+            buffer, byteOffset + (i / 8U), static_cast<std::uint8_t>(i % 8U)));
+    }
+    return bits;
+}
+
+std::vector<pkmn::savegen::model::InventoryItem> ReadItemList(const std::vector<std::uint8_t>& buffer,
+                                                              std::size_t countOffset,
+                                                              std::size_t pairsOffset,
+                                                              int maxPairs) {
+    std::vector<pkmn::savegen::model::InventoryItem> items;
+    const auto count =
+        pkmn::savegen::encoding::PrimitiveWriter::ReadU8(buffer, countOffset);
+    REQUIRE(count <= maxPairs);
+    std::size_t cursor = pairsOffset;
+    for (int i = 0; i < count; ++i) {
+        const auto id = pkmn::savegen::encoding::PrimitiveWriter::ReadU8(buffer, cursor);
+        const auto quantity = pkmn::savegen::encoding::PrimitiveWriter::ReadU8(buffer, cursor + 1U);
+        items.push_back({id, "", quantity});
+        cursor += 2U;
+    }
+    CHECK(pkmn::savegen::encoding::PrimitiveWriter::ReadU8(buffer, cursor) == 0xFF);
+    return items;
+}
+
 }  // namespace
 
 TEST_CASE("Primitive writers encode and validate core formats") {
@@ -208,7 +239,7 @@ TEST_CASE("Deterministic working-buffer initialization copies the canonical temp
     CHECK(first.report.ranges.front().classification == "template-inherited");
 }
 
-TEST_CASE("Milestone 2 generator writes a minimal deterministic save from semantic input") {
+TEST_CASE("Milestone 3 generator writes owned semantic fields from target input") {
     const auto tempDir = MakeTempDir("milestone2-generate");
     const auto outputPath = tempDir / "generated.sav";
     const auto reportPath = tempDir / "generated.generation-report.json";
@@ -252,8 +283,10 @@ TEST_CASE("Milestone 2 generator writes a minimal deterministic save from semant
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BadgesMirrorOff] == 0);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BagItemsCountOff] == 0);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BagItemsPairsOff] == 0xFF);
-    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff] == 0);
-    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff] == 0xFF);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff] == 1);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff] == 20);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff + 1] == 1);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff + 2] == 0xFF);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PartyCountOff] == 0);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PartySpeciesOff] == 0xFF);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::HallOfFameRecordCountOff] == 0);
@@ -261,6 +294,10 @@ TEST_CASE("Milestone 2 generator writes a minimal deterministic save from semant
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::MapIdOff] == 38);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::XCoordOff] == 3);
     CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::YCoordOff] == 6);
+    CHECK(ReadBits(result.outputBytes,
+                   pkmn::savegen::encoding::Gen1Layout::VisitedTownsOff,
+                   pkmn::savegen::encoding::Gen1Layout::VisitedTownsUsedBits) ==
+          std::vector<bool>(pkmn::savegen::encoding::Gen1Layout::VisitedTownsUsedBits, false));
 }
 
 TEST_CASE("Milestone 2 generation ignores target physicalImage and is deterministic") {
@@ -296,7 +333,7 @@ TEST_CASE("Milestone 2 generation ignores target physicalImage and is determinis
     CHECK(firstResult.outputBytes == secondResult.outputBytes);
 }
 
-TEST_CASE("Milestone 2 generation rejects unsupported safe locations and output collisions") {
+TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output collisions") {
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone2-reject");
 
@@ -326,4 +363,228 @@ TEST_CASE("Milestone 2 generation rejects unsupported safe locations and output 
     request.outputSavePath = existingOutput;
     request.outputReportPath = tempDir / "existing.report.json";
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
+}
+
+TEST_CASE("Milestone 3 generation overwrites dummy-owned fields and avoids contamination") {
+    const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
+    const auto tempDir = MakeTempDir("milestone3-contamination");
+
+    nlohmann::json mutated = parsed.document;
+    mutated["decoded"]["trainer"]["name"]["value"] = "ASH";
+    mutated["decoded"]["rival"]["name"]["value"] = "GARY";
+    mutated["decoded"]["trainer"]["trainerId"]["value"] = 12345;
+    mutated["decoded"]["options"]["optionsByte"]["value"] = 90;
+    mutated["decoded"]["options"]["letterDelayByte"]["value"] = 3;
+    mutated["decoded"]["options"]["contrast"]["value"] = 2;
+    mutated["decoded"]["moneyAndCoins"]["money"]["value"] = 654321;
+    mutated["decoded"]["moneyAndCoins"]["coins"]["value"] = 321;
+    mutated["decoded"]["badges"]["rawBitfield"] = "0xA5";
+
+    for (auto& species : mutated["decoded"]["pokedex"]["species"]) {
+        species["owned"] = false;
+        species["seen"] = false;
+    }
+    mutated["decoded"]["pokedex"]["species"][0]["owned"] = true;
+    mutated["decoded"]["pokedex"]["species"][0]["seen"] = true;
+    mutated["decoded"]["pokedex"]["species"][24]["seen"] = true;
+    mutated["decoded"]["pokedex"]["species"][150]["owned"] = true;
+    mutated["decoded"]["pokedex"]["species"][150]["seen"] = true;
+    mutated["decoded"]["pokedex"]["ownedCount"] = 2;
+    mutated["decoded"]["pokedex"]["seenCount"] = 3;
+
+    mutated["decoded"]["inventory"]["bag"]["count"] = 2;
+    mutated["decoded"]["inventory"]["bag"]["items"] = nlohmann::json::array({
+        {
+            {"slot", 1},
+            {"item", {{"name", "POTION"}, {"id", 20}, {"hex", "0x14"}}},
+            {"quantity", 5}
+        },
+        {
+            {"slot", 2},
+            {"item", {{"name", "ANTIDOTE"}, {"id", 11}, {"hex", "0x0B"}}},
+            {"quantity", 2}
+        }
+    });
+    mutated["decoded"]["inventory"]["pcItemStorage"]["count"] = 2;
+    mutated["decoded"]["inventory"]["pcItemStorage"]["items"] = nlohmann::json::array({
+        {
+            {"slot", 1},
+            {"item", {{"name", "POKE BALL"}, {"id", 4}, {"hex", "0x04"}}},
+            {"quantity", 10}
+        },
+        {
+            {"slot", 2},
+            {"item", {{"name", "ESCAPE ROPE"}, {"id", 29}, {"hex", "0x1D"}}},
+            {"quantity", 1}
+        }
+    });
+
+    for (auto& entry : mutated["decoded"]["visitedTowns"]) {
+        entry["visited"] = false;
+    }
+    mutated["decoded"]["visitedTowns"][0]["visited"] = true;
+    mutated["decoded"]["visitedTowns"][2]["visited"] = true;
+    mutated["decoded"]["visitedTowns"][10]["visited"] = true;
+
+    for (auto& entry : mutated["decoded"]["hiddenItems"]) {
+        entry["collected"] = false;
+    }
+    mutated["decoded"]["hiddenItems"][1]["collected"] = true;
+    mutated["decoded"]["hiddenItems"][6]["collected"] = true;
+
+    for (auto& entry : mutated["decoded"]["hiddenCoins"]) {
+        entry["collected"] = false;
+    }
+    mutated["decoded"]["hiddenCoins"][0]["collected"] = true;
+    mutated["decoded"]["hiddenCoins"][11]["collected"] = true;
+
+    const auto inputPath = tempDir / "mutated.red.json";
+    WriteJson(inputPath, mutated);
+
+    pkmn::savegen::generation::GenerateRequest request;
+    request.inputJsonPath = inputPath;
+    request.templateSavePath = DummySavPath();
+    request.profilePath = ProfilePath();
+    request.outputSavePath = tempDir / "generated.sav";
+    request.outputReportPath = tempDir / "generated.report.json";
+
+    const auto result = pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+    const auto templateLoaded =
+        pkmn::savegen::template_loader::CanonicalTemplateLoader::Load(DummySavPath());
+
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::TrainerNameOff,
+              pkmn::savegen::encoding::Gen1Layout::TrainerNameLen) == "ASH");
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::RivalNameOff,
+              pkmn::savegen::encoding::Gen1Layout::RivalNameLen) == "GARY");
+    CHECK(pkmn::savegen::encoding::PrimitiveWriter::ReadU16BigEndian(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::TrainerIdOff) == 12345);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::OptionsOff] == 90);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::LetterDelayOff] == 3);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::ContrastOff] == 2);
+    CHECK(pkmn::savegen::encoding::BcdEncoder::Decode3(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::MoneyOff) == 654321U);
+    CHECK(pkmn::savegen::encoding::BcdEncoder::Decode2(
+              result.outputBytes,
+              pkmn::savegen::encoding::Gen1Layout::CoinsOff) == 321U);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BadgesOff] == 0xA5);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BadgesMirrorOff] == 0xA5);
+
+    const auto ownedBits = ReadBits(result.outputBytes,
+                                    pkmn::savegen::encoding::Gen1Layout::PokedexOwnedOff,
+                                    151);
+    const auto seenBits = ReadBits(result.outputBytes,
+                                   pkmn::savegen::encoding::Gen1Layout::PokedexSeenOff,
+                                   151);
+    CHECK(ownedBits[0]);
+    CHECK_FALSE(ownedBits[24]);
+    CHECK(ownedBits[150]);
+    CHECK(seenBits[0]);
+    CHECK(seenBits[24]);
+    CHECK(seenBits[150]);
+
+    const auto bagItems = ReadItemList(result.outputBytes,
+                                       pkmn::savegen::encoding::Gen1Layout::BagItemsCountOff,
+                                       pkmn::savegen::encoding::Gen1Layout::BagItemsPairsOff,
+                                       pkmn::savegen::encoding::Gen1Layout::BagItemsMaxPairs);
+    REQUIRE(bagItems.size() == 2);
+    CHECK(bagItems[0].id == 20);
+    CHECK(bagItems[0].quantity == 5);
+    CHECK(bagItems[1].id == 11);
+    CHECK(bagItems[1].quantity == 2);
+
+    const auto pcItems = ReadItemList(result.outputBytes,
+                                      pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff,
+                                      pkmn::savegen::encoding::Gen1Layout::PCItemBoxPairsOff,
+                                      pkmn::savegen::encoding::Gen1Layout::PCItemBoxMaxPairs);
+    REQUIRE(pcItems.size() == 2);
+    CHECK(pcItems[0].id == 4);
+    CHECK(pcItems[0].quantity == 10);
+    CHECK(pcItems[1].id == 29);
+    CHECK(pcItems[1].quantity == 1);
+
+    const auto visitedTowns = ReadBits(result.outputBytes,
+                                       pkmn::savegen::encoding::Gen1Layout::VisitedTownsOff,
+                                       pkmn::savegen::encoding::Gen1Layout::VisitedTownsUsedBits);
+    const auto hiddenItems = ReadBits(result.outputBytes,
+                                      pkmn::savegen::encoding::Gen1Layout::HiddenItemsOff,
+                                      pkmn::savegen::encoding::Gen1Layout::HiddenItemsUsedBits);
+    const auto hiddenCoins = ReadBits(result.outputBytes,
+                                      pkmn::savegen::encoding::Gen1Layout::HiddenCoinsOff,
+                                      pkmn::savegen::encoding::Gen1Layout::HiddenCoinsUsedBits);
+    CHECK(visitedTowns[0]);
+    CHECK(visitedTowns[2]);
+    CHECK(visitedTowns[10]);
+    CHECK(hiddenItems[1]);
+    CHECK(hiddenItems[6]);
+    CHECK(hiddenCoins[0]);
+    CHECK(hiddenCoins[11]);
+
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::TrainerNameOff] !=
+          templateLoaded.bytes[pkmn::savegen::encoding::Gen1Layout::TrainerNameOff]);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::BagItemsCountOff] !=
+          templateLoaded.bytes[pkmn::savegen::encoding::Gen1Layout::BagItemsCountOff]);
+    CHECK(result.outputBytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff] !=
+          templateLoaded.bytes[pkmn::savegen::encoding::Gen1Layout::PCItemBoxCountOff]);
+}
+
+TEST_CASE("Milestone 3 generation rejects unsupported deferred states and invalid inventory") {
+    const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
+    const auto tempDir = MakeTempDir("milestone3-reject");
+
+    auto make_request = [&](const std::filesystem::path& inputPath,
+                            const std::string& baseName) {
+        pkmn::savegen::generation::GenerateRequest request;
+        request.inputJsonPath = inputPath;
+        request.templateSavePath = DummySavPath();
+        request.profilePath = ProfilePath();
+        request.outputSavePath = tempDir / (baseName + ".sav");
+        request.outputReportPath = tempDir / (baseName + ".report.json");
+        return request;
+    };
+
+    nlohmann::json withParty = parsed.document;
+    withParty["decoded"]["party"]["count"] = 1;
+    const auto withPartyPath = tempDir / "with-party.red.json";
+    WriteJson(withPartyPath, withParty);
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
+        make_request(withPartyPath, "with-party")));
+
+    nlohmann::json withDaycare = parsed.document;
+    withDaycare["decoded"]["daycare"]["inUse"] = true;
+    const auto withDaycarePath = tempDir / "with-daycare.red.json";
+    WriteJson(withDaycarePath, withDaycare);
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
+        make_request(withDaycarePath, "with-daycare")));
+
+    nlohmann::json withHall = parsed.document;
+    withHall["decoded"]["hallOfFame"]["entryCount"] = 1;
+    const auto withHallPath = tempDir / "with-hall.red.json";
+    WriteJson(withHallPath, withHall);
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
+        make_request(withHallPath, "with-hall")));
+
+    nlohmann::json duplicateBag = parsed.document;
+    duplicateBag["decoded"]["inventory"]["bag"]["count"] = 2;
+    duplicateBag["decoded"]["inventory"]["bag"]["items"] = nlohmann::json::array({
+        {
+            {"slot", 1},
+            {"item", {{"name", "POTION"}, {"id", 20}, {"hex", "0x14"}}},
+            {"quantity", 1}
+        },
+        {
+            {"slot", 2},
+            {"item", {{"name", "POTION"}, {"id", 20}, {"hex", "0x14"}}},
+            {"quantity", 2}
+        }
+    });
+    const auto duplicateBagPath = tempDir / "duplicate-bag.red.json";
+    WriteJson(duplicateBagPath, duplicateBag);
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
+        make_request(duplicateBagPath, "duplicate-bag")));
 }

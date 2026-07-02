@@ -53,19 +53,22 @@ Purpose:
     - `0x25F3-0x25F5` money
     - `0x25F6-0x2600` rival name
     - `0x2601` options
+    - `0x2602` badges
     - `0x2604` letter delay
     - `0x2605-0x2606` trainer ID
     - `0x2609` contrast
-    - `0x260A-0x2610` safe location and coordinates
-    - `0x2850-0x2851` coins
-    - `0x2CED-0x2CF1` playtime
-  - intentionally cleared to canonical minimal defaults:
-    - `0x0598-0x1857` Hall of Fame block
+    - `0x260A-0x2611` safe location and coordinates
     - `0x25A3-0x25B5` Pokédex owned bitfield
     - `0x25B6-0x25C8` Pokédex seen bitfield
     - `0x25C9-0x25F2` bag inventory
-    - `0x2602` badges
     - `0x27E6-0x284B` PC item inventory
+    - `0x2850-0x2851` coins
+    - `0x299C-0x29A2` hidden items
+    - `0x29AA-0x29AB` hidden coins
+    - `0x29B7-0x29B8` visited towns
+    - `0x2CED-0x2CF1` playtime
+  - intentionally cleared to canonical minimal defaults:
+    - `0x0598-0x1857` Hall of Fame block
     - `0x284E` Hall of Fame entry count
     - `0x29D6` badge mirror
     - `0x2CF4-0x2D2B` daycare block
@@ -78,4 +81,5 @@ Purpose:
     - `0x6000-0x7A52` permanent box banks 7-12 plus stored checksum bytes
 
 - The current dummy's invalid permanent box contents make the box-related rows the highest-risk inherited areas in the entire template.
+- Emulator load and save-again validation for the approved Milestone 3 local path left the preserved Policy A storage ranges byte-identical, but that evidence still covers only a no-storage-interaction flow.
 - No final generator should ship without making the overwritten, derived, synchronized, regenerated, and inherited ranges explicit in its generation report.

@@ -16,27 +16,40 @@ Where `~=` means equivalence under the categories below.
 
 ### Required exact semantic match
 
-These must match exactly after reparsing when supported:
+These must match exactly after reparsing when supported.
+
+Currently owned through Milestone 3:
 
 - trainer name
 - rival name
 - trainer ID
+- options byte
+- letter delay byte
+- contrast
 - money
 - coins
 - badges
+- safe baseline map/location coordinates
+- bag inventory
+- PC item inventory
+- bag inventory
+- Pokedex seen/owned state
+- visited towns
+- hidden items
+- hidden coins
+
+Deferred beyond Milestone 3:
+
 - party count
 - party species
 - party moves
 - party experience, DVs, Stat Experience, PP, OT names, nicknames
-- bag inventory
-- PC item inventory
-- Pokedex seen/owned state
 - permanent PC box contents
 - current selected box meaning
 - current-box cache decoded contents
 - daycare occupancy and stored Pokemon
 - Hall of Fame records
-- supported persistent event, trainer-battle, story, and world-state values
+- supported persistent trainer-battle, story, and broader world-state values
 
 ### Required normalized match
 
@@ -74,6 +87,7 @@ If a field is not yet safely serializable:
 - it must be reported as unsupported
 - comparison output must distinguish unsupported from mismatched
 - the generator must not silently claim equivalence for it
+- the generator should reject unsafe non-empty deferred states rather than clearing them silently
 
 ## Comparison Method
 

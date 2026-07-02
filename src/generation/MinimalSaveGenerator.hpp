@@ -64,7 +64,7 @@ public:
 
         WorkingSaveBuffer working =
             RedSaveInitializer::Initialize(loadedTemplate, profile, sanitized.physicalImageRemoved);
-        working.report.generatorVersion = "milestone2-dev";
+        working.report.generatorVersion = "milestone3-dev";
         working.report.targetJsonPath = request.inputJsonPath.lexically_normal().string();
         working.report.targetSourceSha256 = semantic.state.sourceSha256;
         working.report.dummyBoxPolicy = contract.dummyBoxPolicy;
@@ -80,14 +80,14 @@ public:
             encoding::Gen1Layout::MainChecksumOff,
             encoding::Gen1Layout::MainChecksumOff,
             "regenerated-checksum",
-            "Main checksum regenerated after Milestone 2 writes"
+            "Main checksum regenerated after semantic writes"
         });
         working.report.fieldsWritten.push_back("integrity.mainChecksum");
 
         const auto integrity =
             integrity::IntegrityValidator::ValidateMilestone2(working.bytes, loadedTemplate.bytes, false);
         if (!integrity.ok) {
-            std::string message = "Milestone 2 integrity validation failed.";
+            std::string message = "Generation integrity validation failed.";
             for (const std::string& error : integrity.errors) {
                 message += " ";
                 message += error;

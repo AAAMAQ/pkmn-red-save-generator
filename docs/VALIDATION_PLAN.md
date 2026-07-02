@@ -82,7 +82,20 @@ Milestone 2 emulator-load evidence now recorded:
 - Red loaded in his house on the second floor
 - no immediate corruption warning appeared
 
-Milestone 2 emulator validation still remains incomplete until a post-save `.sav` is reparsed.
+Milestone 2 and Milestone 3 emulator save-again evidence now recorded for the approved local validation path:
+
+- the Milestone 3 projected save loaded successfully
+- trainer identity, money, coins, badges, playtime, location, bag contents, and PC item contents displayed correctly
+- the game saved successfully through the in-game menu
+- the post-save file was byte-identical to the preserved pre-emulator copy
+- Save Genie reparsed the post-save file successfully
+- generator-side semantic comparison still reported `PASS`
+
+Pokedex verification wording for Milestone 3 must remain precise:
+
+- Pokedex semantic verification passed through Save Genie reparse and semantic comparison
+- direct in-game Pokedex UI verification was not performed
+- broader event and world-state serialization may still be needed to make the Pokedex UI accessible consistently
 
 ## Stage 7: Save-Again Validation
 
@@ -141,6 +154,6 @@ Milestone 2 now has an automated minimal generator, main checksum regeneration, 
 
 Remaining Milestone 2 limitation:
 
-- emulator load has been confirmed, but save-again reparse evidence is still required before Milestone 2 can be treated as fully closed at the storage-validation level
-- permanent PC storage remains preserved canonical inherited state under Policy A and is not yet serialized semantically
+- emulator load and save-again reparse evidence have now been confirmed for the approved Milestone 3 local validation path
+- permanent PC storage remains preserved canonical inherited state under Policy A and is still not serialized semantically
 - broader event-state serialization remains deferred to Milestone 3 and later
