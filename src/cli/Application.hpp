@@ -103,6 +103,7 @@ private:
                   << " / " << semantic.state.identity.rivalName << "\n";
         std::cout << "Bag items: " << semantic.state.inventory.bagItems.size()
                   << ", PC items: " << semantic.state.inventory.pcItems.size() << "\n";
+        std::cout << "Party count: " << semantic.state.party.count << "\n";
         return validation.ok ? 0 : 1;
     }
 
@@ -202,18 +203,17 @@ private:
         }
 
         comparison::ComparisonOptions options;
-        options.compareParty = false;
         options.compareDaycare = false;
         options.compareHallOfFame = false;
         options.compareEventSubset = true;
         const auto differences = comparison::SemanticComparator::CompareOwnedFields(
             contract.expectedSemantic, actualSemantic.state, options);
         if (differences.empty()) {
-            std::cout << "Milestone 3 semantic comparison: PASS\n";
+            std::cout << "Milestone 4 semantic comparison: PASS\n";
             return 0;
         }
 
-        std::cout << "Milestone 3 semantic comparison: FAIL\n";
+        std::cout << "Milestone 4 semantic comparison: FAIL\n";
         for (const auto& difference : differences) {
             std::cout << difference.fieldPath
                       << " [" << comparison::SemanticComparator::CategoryLabel(difference.category) << "]"

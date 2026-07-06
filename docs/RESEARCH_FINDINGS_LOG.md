@@ -207,3 +207,83 @@
   - unchanged empty current-box cache
   - unchanged suspicious permanent-box decode state under Policy A
 - This is sufficient to keep Policy A for the current Milestone 3 load/save-again path without expanding it into a blanket claim about future PC-storage interaction safety.
+
+## 2026-07-06
+
+### Milestone 4 party-serialization findings
+
+- The generator now serializes the full active party in the main save area:
+  - party count
+  - species list and terminator
+  - all six party records
+  - OT names
+  - nicknames
+- Party comparison is now field-aware down to indexed paths such as move PP, nickname, current HP, DVs, and Stat Experience.
+- The party generation path still ignores the target `physicalImage` entirely.
+
+### Party-stat policy finding
+
+- The private six-Pokemon working fixture exposed a mismatch between an inferred stat formula and actual stored party stats from a real save.
+- Observed Save Genie-decoded party live stats should be treated as authoritative stored state for Milestone 4 generation.
+- The validator now enforces structural and range invariants for stored live stats rather than rejecting real saves over small calculator-policy differences.
+- `PokemonStatCalculator` remains useful for helper construction, PP packing, DV derivation, and future analysis, but Milestone 4 generation preserves the decoded stored party stats supplied by semantic input.
+
+### Milestone 4 local working-fixture findings
+
+- A private local-only six-Pokemon `.red.json` fixture was validated successfully against schema `0.1.0`.
+- The raw fixture still exceeded Milestone 4 scope because it contained:
+  - non-empty permanent PC storage with `116` boxed Pokemon across `7` occupied boxes
+  - non-empty Hall of Fame with `18` entries
+  - broad story, trainer-battle, static-battle, event-flag, script, and world-state progress
+  - a live source location outside the currently proven safe baseline
+- Direct generation from the raw fixture was rejected conservatively because the source location was `mapId=41` instead of the proven `mapId=38`.
+- A local-only Milestone 4 projection fixture was derived:
+  - removed the target `physicalImage`
+  - preserved supported Milestone 4 owned semantics
+  - canonicalized location to Red's house second floor
+  - kept daycare empty
+  - kept Hall of Fame empty
+
+### Milestone 4 physical-image isolation and semantic proof
+
+- The projected local fixture generated successfully.
+- A variant of the same projected fixture with replaced `physicalImage` produced a byte-identical `.sav`.
+- Both projected-party outputs had SHA-256 `d40757bbd58effa0ba73b44aa2d3352f01e6ca2dd79aab539d1e9bee9dd13c0d`.
+- Independent Save Genie reparse of the generated Milestone 4 save confirmed:
+  - trainer `GOON`
+  - rival `KILLUA`
+  - trainer ID `257`
+  - money `589999`
+  - coins `999`
+  - badges all set
+  - playtime `56:20:07`
+  - location `Red's house (second floor)`
+  - Pokedex seen `151`, owned `151`
+  - bag inventory count `19`
+  - PC item inventory count `48`
+  - six-party lineup with expected species, levels, names, HP, status, and moves
+- Generator-side `compare-semantics` reported `PASS` for both projected-party reparses.
+- Direct raw-fixture-to-generated comparison found only one owned-field difference:
+  - `core.mapId` remained canonicalized to the currently proven safe baseline
+
+### Milestone 4 emulator save-again findings
+
+- The generated projected-party save loaded successfully in emulator testing.
+- `Continue` appeared.
+- The save loaded without corruption warnings.
+- Trainer/core state displayed correctly.
+- The full six-Pokemon lineup displayed correctly in-game.
+- Inspected party levels, names, HP, status, and moves were correct.
+- Bag contents and PC item storage displayed correctly.
+- The game saved successfully through the in-game menu.
+- The emulator-written file was copied to a stable local validation path before further analysis.
+- The post-save file remained `32768` bytes with SHA-256 `d40757bbd58effa0ba73b44aa2d3352f01e6ca2dd79aab539d1e9bee9dd13c0d`.
+- Direct binary comparison against preserved pristine pre-emulator outputs showed no changed bytes.
+- Save Genie reparse of the post-save file confirmed:
+  - valid main checksum
+  - unchanged invalid bank 2 all-box checksum
+  - unchanged invalid bank 3 all-box checksum
+  - preserved Milestone 4 owned semantic fields
+  - unchanged empty current-box cache
+  - unchanged suspicious permanent-box decode state under Policy A
+- This keeps Policy A for Milestone 4 load/save-again validation while leaving PC-storage semantics and checksum repair to Milestone 5.

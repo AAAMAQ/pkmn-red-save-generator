@@ -17,6 +17,7 @@
 #include "../template/TemplateValidator.hpp"
 #include "CoreStateSerializer.hpp"
 #include "MinimalStateContract.hpp"
+#include "PartySerializer.hpp"
 #include "RedSaveInitializer.hpp"
 
 namespace pkmn::savegen::generation {
@@ -64,7 +65,7 @@ public:
 
         WorkingSaveBuffer working =
             RedSaveInitializer::Initialize(loadedTemplate, profile, sanitized.physicalImageRemoved);
-        working.report.generatorVersion = "milestone3-dev";
+        working.report.generatorVersion = "milestone4-dev";
         working.report.targetJsonPath = request.inputJsonPath.lexically_normal().string();
         working.report.targetSourceSha256 = semantic.state.sourceSha256;
         working.report.dummyBoxPolicy = contract.dummyBoxPolicy;
@@ -74,6 +75,7 @@ public:
             working.report.warnings.end(), contract.warnings.begin(), contract.warnings.end());
 
         CoreStateSerializer::ApplyMinimalState(contract, working);
+        PartySerializer::WriteParty(working, contract.expectedSemantic.party);
         working.bytes[encoding::Gen1Layout::MainChecksumOff] =
             integrity::ChecksumAlgorithms::ComputeMainChecksum(working.bytes);
         working.report.ranges.push_back({

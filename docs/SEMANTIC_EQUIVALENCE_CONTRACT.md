@@ -18,7 +18,7 @@ Where `~=` means equivalence under the categories below.
 
 These must match exactly after reparsing when supported.
 
-Currently owned through Milestone 3:
+Currently owned through Milestone 4:
 
 - trainer name
 - rival name
@@ -32,18 +32,29 @@ Currently owned through Milestone 3:
 - safe baseline map/location coordinates
 - bag inventory
 - PC item inventory
-- bag inventory
 - Pokedex seen/owned state
 - visited towns
 - hidden items
 - hidden coins
-
-Deferred beyond Milestone 3:
-
 - party count
-- party species
+- party species list and terminator semantics
+- party Pokemon slot ordering
+- party Pokemon species
+- party current HP
+- party status bytes
 - party moves
-- party experience, DVs, Stat Experience, PP, OT names, nicknames
+- party PP and PP Ups
+- party OT names
+- party nicknames
+- party trainer IDs
+- party experience
+- party DVs
+- party Stat Experience
+- party stored level
+- party stored live stats
+
+Deferred beyond Milestone 4:
+
 - permanent PC box contents
 - current selected box meaning
 - current-box cache decoded contents
@@ -65,6 +76,7 @@ These may be recomputed as long as the decoded meaning remains correct:
 
 - duplicated badge mirror bytes
 - Pokedex counts derived from bitfields
+- party type bytes and catch-rate byte derived from species identity
 - current-box cache synchronized from storage semantics
 - regenerated checksum bytes
 

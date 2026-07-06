@@ -1,6 +1,6 @@
 # Validation Plan
 
-Milestone 1 implements the first validation layers. Full generation validation remains incomplete until Milestones 2 and 3.
+Milestone 1 implements the first validation layers. Generation validation is now implemented through Milestone 4 for the currently owned semantic surface.
 
 ## Stage 1: Input Validation
 
@@ -50,6 +50,10 @@ Milestone 1 implements the first validation layers. Full generation validation r
   - regenerated main checksum
   - unchanged permanent box banks under Policy A
   - unchanged bank 2 and bank 3 all-box checksum state under Policy A
+- Milestone 4 now additionally validates:
+  - full active-party count and species-list structure
+  - party record field bounds, move packing, name encodability, and HP/status invariants
+  - deterministic party serialization independent of target `physicalImage`
 
 ## Stage 5: Independent Reparse
 
@@ -88,6 +92,19 @@ Milestone 2 and Milestone 3 emulator save-again evidence now recorded for the ap
 - trainer identity, money, coins, badges, playtime, location, bag contents, and PC item contents displayed correctly
 - the game saved successfully through the in-game menu
 - the post-save file was byte-identical to the preserved pre-emulator copy
+- Save Genie reparsed the post-save file successfully
+- generator-side semantic comparison still reported `PASS`
+
+Milestone 4 emulator save-again evidence is now also recorded for the approved local projected-party validation path:
+
+- `Continue` appeared
+- the save loaded without corruption warnings
+- trainer/core state displayed correctly
+- the six-party lineup displayed correctly
+- inspected levels, names, HP, status, and moves displayed correctly
+- bag contents and PC item storage displayed correctly
+- the game saved successfully through the in-game menu
+- the emulator-written file was byte-identical to the preserved pre-emulator save
 - Save Genie reparsed the post-save file successfully
 - generator-side semantic comparison still reported `PASS`
 
@@ -156,4 +173,4 @@ Remaining Milestone 2 limitation:
 
 - emulator load and save-again reparse evidence have now been confirmed for the approved Milestone 3 local validation path
 - permanent PC storage remains preserved canonical inherited state under Policy A and is still not serialized semantically
-- broader event-state serialization remains deferred to Milestone 3 and later
+- broader event-state serialization remains deferred to Milestone 5 and later

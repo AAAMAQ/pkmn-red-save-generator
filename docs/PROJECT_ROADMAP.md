@@ -29,6 +29,7 @@
 - regenerate main checksum
 - confirm Save Genie reparse and emulator load
 - resolve suspicious permanent-box/current-box inheritance in the working buffer before acceptance
+- status: implemented
 
 ## Milestone 3: Core Gameplay State
 
@@ -41,6 +42,7 @@
 - core semantic comparison output
 - conservative persistent event subset
 - contamination and determinism tests
+- status: implemented
 
 ## Milestone 4: Party Serialization
 
@@ -48,6 +50,8 @@
 - complete party Pokemon records
 - OT names and nicknames
 - party-derived validation
+- Save Genie reparse and emulator validation
+- status: implemented
 
 ## Milestone 5: PC Storage
 

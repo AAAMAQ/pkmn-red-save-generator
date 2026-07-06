@@ -10,6 +10,7 @@
 
 #include "../encoding/Gen1Layout.hpp"
 #include "../model/RedSemanticState.hpp"
+#include "PartyValidator.hpp"
 
 namespace pkmn::savegen::generation {
 
@@ -39,7 +40,7 @@ public:
             target.core.x != contract.supportedLocation.x ||
             target.core.y != contract.supportedLocation.y) {
             std::ostringstream oss;
-            oss << "Milestone 3 currently supports only the proven baseline location map="
+            oss << "Milestone 4 currently supports only the proven baseline location map="
                 << static_cast<int>(contract.supportedLocation.mapId)
                 << " x=" << static_cast<int>(contract.supportedLocation.x)
                 << " y=" << static_cast<int>(contract.supportedLocation.y)
@@ -49,17 +50,14 @@ public:
             throw std::runtime_error(oss.str());
         }
 
-        if (target.party.count != 0) {
-            throw std::runtime_error(
-                "Milestone 3 does not yet support non-empty party serialization.");
-        }
+        PartyValidator::ValidateOrThrow(target.party);
         if (target.daycare.inUse) {
             throw std::runtime_error(
-                "Milestone 3 does not yet support an occupied daycare state.");
+                "Milestone 4 does not yet support an occupied daycare state.");
         }
         if (target.hallOfFame.entryCount != 0) {
             throw std::runtime_error(
-                "Milestone 3 does not yet support non-empty Hall of Fame reconstruction.");
+                "Milestone 4 does not yet support non-empty Hall of Fame reconstruction.");
         }
 
         RequireBitfieldLength(
@@ -91,11 +89,11 @@ public:
         contract.expectedSemantic.pokedex.seenCount = CountTrue(contract.expectedSemantic.pokedex.seen);
 
         contract.warnings.push_back(
-            "Milestone 3 preserves the committed dummy's permanent box banks and invalid bank all-box checksums as canonical unused state.");
+            "Milestone 4 preserves the committed dummy's permanent box banks and invalid bank all-box checksums as canonical unused state.");
         contract.warnings.push_back(
-            "Milestone 3 still supports only the proven baseline safe location from the canonical dummy template.");
+            "Milestone 4 still supports only the proven baseline safe location from the canonical dummy template.");
         contract.warnings.push_back(
-            "Milestone 3 owns trainer/core fields, badges, Pokedex, bag inventory, PC item inventory, and the conservative event subset only.");
+            "Milestone 4 now owns full party serialization in addition to trainer/core fields, badges, Pokedex, bag inventory, PC item inventory, and the conservative event subset.");
         return contract;
     }
 
@@ -106,7 +104,7 @@ private:
         if (bits.size() != expected) {
             std::ostringstream oss;
             oss << label << " must contain exactly " << expected
-                << " entries for Milestone 3; received " << bits.size() << ".";
+                << " entries for Milestone 4; received " << bits.size() << ".";
             throw std::runtime_error(oss.str());
         }
     }

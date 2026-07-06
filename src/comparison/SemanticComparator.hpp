@@ -4,21 +4,10 @@
 #include <vector>
 
 #include "../model/RedSemanticState.hpp"
+#include "ComparisonTypes.hpp"
+#include "PartyComparisonRules.hpp"
 
 namespace pkmn::savegen::comparison {
-
-enum class DifferenceCategory {
-    RequiredExactMismatch,
-    DerivedMismatch,
-    PermittedCanonicalDifference
-};
-
-struct Difference {
-    DifferenceCategory category = DifferenceCategory::RequiredExactMismatch;
-    std::string fieldPath;
-    std::string expectedValue;
-    std::string actualValue;
-};
 
 struct ComparisonOptions {
     bool compareIdentity = true;
@@ -170,11 +159,7 @@ public:
                std::to_string(actual.pokedex.seenCount));
         }
         if (options.compareParty) {
-            add_if(expected.party != actual.party,
-               DifferenceCategory::PermittedCanonicalDifference,
-               "party",
-               std::to_string(expected.party.count),
-               std::to_string(actual.party.count));
+            PartyComparisonRules::Compare(expected.party, actual.party, add_if);
         }
         if (options.compareDaycare) {
             add_if(expected.daycare != actual.daycare,

@@ -1,6 +1,6 @@
 # Pkmn Red Save Generator
 
-Status: Milestone 1 foundation implemented.
+Status: Milestone 4 party serialization implemented.
 
 This project generates a new Pokemon Red save from semantic `.red.json` data. It does not use the target `.red.json` `physicalImage` to reconstruct the original binary. Output is intended to be gameplay-equivalent and structurally valid, not byte-identical to the source save.
 
@@ -28,7 +28,11 @@ The prerequisite Save Genie remains the trusted Red-side research and parsing co
 - Git repository initialized at the generator root on 2026-06-24.
 - Existing Xcode project preserved and now builds against the shared source tree.
 - A first-class CMake build and doctest-based test target now exist alongside Xcode.
-- Milestone 1 foundation code, validation commands, and safety boundaries are tracked under `src/`, `tests/`, `profiles/`, and `docs/`.
+- Milestones 1-4 are now implemented for the currently owned semantic surface:
+  - foundation, validation, and template safety
+  - minimal valid save generation
+  - core trainer, item, Pokedex, and conservative event generation
+  - active party Pokemon serialization
 
 ## Key Milestone 0 Findings
 
@@ -77,6 +81,36 @@ This means the dummy cannot be treated as a harmless blank save. Any template-ba
 - `show-profile --profile <profile.json>`
   - prints the active supported target profile
 
+## Current Generator Capabilities
+
+- `generate --input <target.red.json> --template <dummy.sav> --profile <profile.json> --output <generated.sav> --report <generated.generation-report.json>`
+  - generates a deterministic Pokemon Red save from semantic `.red.json` data
+  - ignores the target `physicalImage`
+  - preserves the committed dummy template unchanged
+- `compare-semantics --target-json <target.red.json> --reparsed-json <savegenie-output.red.json>`
+  - compares currently owned semantic fields after Save Genie reparse
+
+Currently owned through Milestone 4:
+
+- trainer and rival identity
+- trainer ID
+- options
+- playtime
+- money and coins
+- badges
+- conservative safe baseline location
+- Pokedex seen and owned bitfields
+- bag inventory
+- PC item inventory
+- conservative visited-town, hidden-item, and hidden-coin subset
+- full active party serialization:
+  - party count
+  - species list and terminator
+  - party records
+  - OT names
+  - nicknames
+  - moves, PP, DVs, Stat Experience, current HP, status, and stored live stats
+
 ## Build Paths
 
 - CMake:
@@ -89,8 +123,10 @@ This means the dummy cannot be treated as a harmless blank save. Any template-ba
 
 ## Next Milestones
 
-- Milestone 2: minimal valid generated save
-- Milestone 3: core gameplay state, semantic comparison, contamination checks, determinism checks
-- Later milestones: party, PC storage, extended events, emulator automation, and release hardening
+- Milestone 5: PC storage and current-box cache synchronization
+- Milestone 6: daycare, Hall of Fame, extended story/event/world state
+- Milestone 7: broader semantic-equivalence coverage
+- Milestone 8: expanded emulator and save-again validation
+- Milestone 9: release hardening
 
 See `docs/PROJECT_ROADMAP.md` for the detailed roadmap.

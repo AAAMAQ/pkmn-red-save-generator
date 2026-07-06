@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -8,6 +9,7 @@
 #include <vector>
 
 #include "../../third_party/nlohmann/json.hpp"
+#include "../pokemon/Gen1PokemonData.hpp"
 
 namespace pkmn::savegen::model {
 
@@ -60,8 +62,65 @@ struct InventoryState {
     bool operator==(const InventoryState&) const = default;
 };
 
+struct PartyMoveState {
+    std::uint8_t moveId = 0;
+    std::string moveName;
+    std::uint8_t ppCurrent = 0;
+    std::uint8_t ppUps = 0;
+
+    bool operator==(const PartyMoveState&) const = default;
+};
+
+struct PokemonStatExperienceState {
+    std::uint16_t hp = 0;
+    std::uint16_t attack = 0;
+    std::uint16_t defense = 0;
+    std::uint16_t speed = 0;
+    std::uint16_t special = 0;
+
+    bool operator==(const PokemonStatExperienceState&) const = default;
+};
+
+struct PokemonDVState {
+    std::uint8_t hp = 0;
+    std::uint8_t attack = 0;
+    std::uint8_t defense = 0;
+    std::uint8_t speed = 0;
+    std::uint8_t special = 0;
+
+    bool operator==(const PokemonDVState&) const = default;
+};
+
+struct PartyPokemonState {
+    int position = 0;
+    std::uint8_t speciesId = 0;
+    std::string speciesName;
+    std::uint8_t nationalDexNumber = 0;
+    std::string nickname;
+    std::string originalTrainerName;
+    std::uint16_t originalTrainerId = 0;
+    std::uint8_t level = 0;
+    std::uint32_t experience = 0;
+    std::uint8_t statusRaw = 0;
+    std::uint8_t type1 = 0;
+    std::uint8_t type2 = 0;
+    std::uint8_t catchRate = 0;
+    std::uint16_t currentHp = 0;
+    std::uint16_t maxHp = 0;
+    std::uint16_t attack = 0;
+    std::uint16_t defense = 0;
+    std::uint16_t speed = 0;
+    std::uint16_t special = 0;
+    std::vector<PartyMoveState> moves;
+    PokemonStatExperienceState statExperience;
+    PokemonDVState dvs;
+
+    bool operator==(const PartyPokemonState&) const = default;
+};
+
 struct PartyState {
     int count = 0;
+    std::vector<PartyPokemonState> pokemon;
 
     bool operator==(const PartyState&) const = default;
 };
@@ -186,6 +245,73 @@ public:
             }
 
             state.party.count = decoded.at("party").at("count").get<int>();
+            for (const auto& mon : decoded.at("party").at("pokemon")) {
+                PartyPokemonState partyMon;
+                partyMon.position = mon.at("position").get<int>();
+                partyMon.speciesId =
+                    static_cast<std::uint8_t>(mon.at("species").at("internalId").get<int>());
+                partyMon.speciesName = mon.at("species").at("name").get<std::string>();
+                partyMon.nationalDexNumber = static_cast<std::uint8_t>(
+                    mon.at("species").at("nationalDexNumber").get<int>());
+                partyMon.nickname = mon.at("nickname").at("value").get<std::string>();
+                partyMon.originalTrainerName =
+                    mon.at("originalTrainer").at("name").get<std::string>();
+                partyMon.originalTrainerId = static_cast<std::uint16_t>(
+                    mon.at("originalTrainer").at("idNo").get<int>());
+                partyMon.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
+                partyMon.experience =
+                    static_cast<std::uint32_t>(mon.at("experience").get<int>());
+                partyMon.statusRaw =
+                    parse_hex_byte(mon.at("status").at("rawByte").get<std::string>().substr(2));
+
+                const auto* speciesData = pokemon::FindSpeciesData(partyMon.speciesId);
+                if (speciesData == nullptr) {
+                    throw std::runtime_error(
+                        "decoded.party contains unsupported species id " +
+                        std::to_string(partyMon.speciesId) + ".");
+                }
+                partyMon.type1 = speciesData->type1;
+                partyMon.type2 = speciesData->type2;
+                partyMon.catchRate = speciesData->catchRate;
+
+                const nlohmann::json& stats = mon.at("stats");
+                partyMon.currentHp = static_cast<std::uint16_t>(stats.at("hpCurrent").get<int>());
+                partyMon.maxHp = static_cast<std::uint16_t>(stats.at("hpMax").get<int>());
+                partyMon.attack = static_cast<std::uint16_t>(stats.at("attack").get<int>());
+                partyMon.defense = static_cast<std::uint16_t>(stats.at("defense").get<int>());
+                partyMon.speed = static_cast<std::uint16_t>(stats.at("speed").get<int>());
+                partyMon.special = static_cast<std::uint16_t>(stats.at("special").get<int>());
+
+                const nlohmann::json& dvs = mon.at("dvs");
+                partyMon.dvs.hp = static_cast<std::uint8_t>(dvs.at("hp").get<int>());
+                partyMon.dvs.attack = static_cast<std::uint8_t>(dvs.at("attack").get<int>());
+                partyMon.dvs.defense = static_cast<std::uint8_t>(dvs.at("defense").get<int>());
+                partyMon.dvs.speed = static_cast<std::uint8_t>(dvs.at("speed").get<int>());
+                partyMon.dvs.special = static_cast<std::uint8_t>(dvs.at("special").get<int>());
+
+                const nlohmann::json& statExperience = mon.at("statExperience");
+                partyMon.statExperience.hp = static_cast<std::uint16_t>(
+                    statExperience.at("hp").get<int>());
+                partyMon.statExperience.attack = static_cast<std::uint16_t>(
+                    statExperience.at("attack").get<int>());
+                partyMon.statExperience.defense = static_cast<std::uint16_t>(
+                    statExperience.at("defense").get<int>());
+                partyMon.statExperience.speed = static_cast<std::uint16_t>(
+                    statExperience.at("speed").get<int>());
+                partyMon.statExperience.special = static_cast<std::uint16_t>(
+                    statExperience.at("special").get<int>());
+
+                for (const auto& move : mon.at("moves")) {
+                    partyMon.moves.push_back(PartyMoveState{
+                        static_cast<std::uint8_t>(move.at("move").at("id").get<int>()),
+                        move.at("move").at("name").get<std::string>(),
+                        static_cast<std::uint8_t>(move.at("pp").at("current").get<int>()),
+                        static_cast<std::uint8_t>(move.at("pp").at("ppUps").get<int>())
+                    });
+                }
+
+                state.party.pokemon.push_back(std::move(partyMon));
+            }
             state.daycare.inUse = decoded.at("daycare").at("inUse").get<bool>();
             state.hallOfFame.entryCount = decoded.at("hallOfFame").at("entryCount").get<int>();
 

@@ -120,7 +120,6 @@ public:
                       contract.expectedSemantic.inventory.pcItems,
                       "inventory.pcItems");
         WriteEventSubset(working, contract.expectedSemantic.eventSubset);
-        ClearParty(working);
         ClearDaycare(working);
         ClearHallOfFame(working);
     }
@@ -229,16 +228,6 @@ private:
                                   encoding::Gen1Layout::HiddenCoinsLen,
                                   eventSubset.hiddenCoins,
                                   "eventSubset.hiddenCoins");
-    }
-
-    static void ClearParty(WorkingSaveBuffer& working) {
-        ZeroRange(working.bytes, encoding::Gen1Layout::PartyBase, encoding::Gen1Layout::PartyBlockLen);
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::PartySpeciesOff, 0xFF);
-        MarkRange(working.report,
-                  encoding::Gen1Layout::PartyBase,
-                  encoding::Gen1Layout::PartyBase + encoding::Gen1Layout::PartyBlockLen - 1,
-                  "intentionally-cleared",
-                  "empty party canonical default");
     }
 
     static void ClearDaycare(WorkingSaveBuffer& working) {

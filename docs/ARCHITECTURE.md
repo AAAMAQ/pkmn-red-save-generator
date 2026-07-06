@@ -1,6 +1,6 @@
 # Architecture
 
-## Milestone 1 Status
+## Current Status
 
 The repository now uses a shared source layout while preserving the existing Xcode CLI target:
 
@@ -67,6 +67,11 @@ Deferred cleanup:
 - `CoreState`
 - `PokedexState`
 - `InventoryState`
+- `PartyState`
+- `PartyPokemonState`
+- `PartyMoveState`
+- `PokemonDVState`
+- `PokemonStatExperienceState`
 - `EventSubsetState`
 
 ### Encoding And Primitive Rules
@@ -89,6 +94,9 @@ Deferred cleanup:
 - `RedSaveInitializer`
 - `MinimalStateContract`
 - `CoreStateSerializer`
+- `PartySerializer`
+- `PartyValidator`
+- `PokemonStatCalculator`
 - `MinimalSaveGenerator`
 
 ### Integrity
@@ -101,6 +109,7 @@ Deferred cleanup:
 ### Verification And Reporting
 
 - `SemanticComparator`
+- `PartyComparisonRules`
 - `GenerationReport`
 
 ## Data Flow
@@ -134,13 +143,18 @@ target .red.json
   - regenerated main checksum
   - explicit Policy A preservation of untouched permanent storage banks until storage serialization is implemented
 - Milestone 3 expands the active generator to own:
+- Milestone 3 expands the active generator to own:
   - badges and synchronized badge mirror
   - Pokédex owned and seen bitfields
   - bag inventory and PC item inventory
   - the conservative event subset of visited towns, hidden items, and hidden coins
   - field-aware semantic comparison categories for exact, derived, and permitted deferred differences
-- Milestone 3 still defers:
-  - party serialization
+- Milestone 4 extends ownership to:
+  - full active-party serialization in the main save area
+  - party count, species list, terminator, OT names, nicknames, and all six party records
+  - field-aware party comparison down to indexed move, PP, DV, Stat Experience, and text paths
+  - deterministic party generation that remains independent of target `physicalImage`
+- Milestone 4 still defers:
   - permanent PC storage serialization
   - daycare occupancy reconstruction
   - Hall of Fame reconstruction
