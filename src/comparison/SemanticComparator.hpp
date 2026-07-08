@@ -1,11 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "../model/RedSemanticState.hpp"
 #include "ComparisonTypes.hpp"
 #include "PartyComparisonRules.hpp"
+#include "StorageComparisonRules.hpp"
 
 namespace pkmn::savegen::comparison {
 
@@ -15,9 +17,16 @@ struct ComparisonOptions {
     bool comparePokedex = true;
     bool compareInventory = true;
     bool compareParty = true;
+    bool compareStorage = true;
     bool compareDaycare = true;
     bool compareHallOfFame = true;
-    bool compareEventSubset = false;
+    bool compareWorldSubset = false;
+    bool compareEvents = false;
+    bool compareTrainerBattles = false;
+    bool compareStaticBattles = false;
+    bool compareStoryProgress = false;
+    bool compareScripts = false;
+    bool compareMissableObjects = false;
 };
 
 class SemanticComparator {
@@ -26,9 +35,6 @@ public:
                                                       const model::RedSemanticState& actual,
                                                       const ComparisonOptions& options = {}) {
         std::vector<Difference> differences;
-        if (expected == actual && options.compareEventSubset) {
-            return differences;
-        }
 
         auto add_if = [&differences](bool condition,
                                      DifferenceCategory category,
@@ -45,154 +51,108 @@ public:
 
         if (options.compareIdentity) {
             add_if(expected.identity.playerName != actual.identity.playerName,
-               DifferenceCategory::RequiredExactMismatch,
-               "identity.playerName",
-               expected.identity.playerName,
-               actual.identity.playerName);
+                   DifferenceCategory::RequiredExactMismatch,
+                   "identity.playerName",
+                   expected.identity.playerName,
+                   actual.identity.playerName);
             add_if(expected.identity.rivalName != actual.identity.rivalName,
-               DifferenceCategory::RequiredExactMismatch,
-               "identity.rivalName",
-               expected.identity.rivalName,
-               actual.identity.rivalName);
+                   DifferenceCategory::RequiredExactMismatch,
+                   "identity.rivalName",
+                   expected.identity.rivalName,
+                   actual.identity.rivalName);
             add_if(expected.identity.trainerId != actual.identity.trainerId,
-               DifferenceCategory::RequiredExactMismatch,
-               "identity.trainerId",
-               std::to_string(expected.identity.trainerId),
-               std::to_string(actual.identity.trainerId));
+                   DifferenceCategory::RequiredExactMismatch,
+                   "identity.trainerId",
+                   std::to_string(expected.identity.trainerId),
+                   std::to_string(actual.identity.trainerId));
         }
 
         if (options.compareCore) {
-            add_if(expected.core.optionsByte != actual.core.optionsByte,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.optionsByte",
-               std::to_string(expected.core.optionsByte),
-               std::to_string(actual.core.optionsByte));
-            add_if(expected.core.letterDelayByte != actual.core.letterDelayByte,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.letterDelayByte",
-               std::to_string(expected.core.letterDelayByte),
-               std::to_string(actual.core.letterDelayByte));
-            add_if(expected.core.contrast != actual.core.contrast,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.contrast",
-               std::to_string(expected.core.contrast),
-               std::to_string(actual.core.contrast));
-            add_if(expected.core.badgesBitfield != actual.core.badgesBitfield,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.badgesBitfield",
-               std::to_string(expected.core.badgesBitfield),
-               std::to_string(actual.core.badgesBitfield));
-            add_if(expected.core.money != actual.core.money,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.money",
-               std::to_string(expected.core.money),
-               std::to_string(actual.core.money));
-            add_if(expected.core.coins != actual.core.coins,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.coins",
-               std::to_string(expected.core.coins),
-               std::to_string(actual.core.coins));
-            add_if(expected.core.mapId != actual.core.mapId,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.mapId",
-               std::to_string(expected.core.mapId),
-               std::to_string(actual.core.mapId));
-            add_if(expected.core.x != actual.core.x,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.x",
-               std::to_string(expected.core.x),
-               std::to_string(actual.core.x));
-            add_if(expected.core.y != actual.core.y,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.y",
-               std::to_string(expected.core.y),
-               std::to_string(actual.core.y));
-            add_if(expected.core.playHours != actual.core.playHours,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.playHours",
-               std::to_string(expected.core.playHours),
-               std::to_string(actual.core.playHours));
-            add_if(expected.core.playMinutes != actual.core.playMinutes,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.playMinutes",
-               std::to_string(expected.core.playMinutes),
-               std::to_string(actual.core.playMinutes));
-            add_if(expected.core.playSeconds != actual.core.playSeconds,
-               DifferenceCategory::RequiredExactMismatch,
-               "core.playSeconds",
-               std::to_string(expected.core.playSeconds),
-               std::to_string(actual.core.playSeconds));
+            CompareCore(expected.core, actual.core, add_if);
         }
 
         if (options.compareInventory) {
             add_if(expected.inventory.bagItems != actual.inventory.bagItems,
-               DifferenceCategory::RequiredExactMismatch,
-               "inventory.bagItems",
-               "different",
-               "different");
+                   DifferenceCategory::RequiredExactMismatch,
+                   "inventory.bagItems",
+                   "different",
+                   "different");
             add_if(expected.inventory.pcItems != actual.inventory.pcItems,
-               DifferenceCategory::RequiredExactMismatch,
-               "inventory.pcItems",
-               "different",
-               "different");
+                   DifferenceCategory::RequiredExactMismatch,
+                   "inventory.pcItems",
+                   "different",
+                   "different");
         }
+
         if (options.comparePokedex) {
             add_if(expected.pokedex.owned != actual.pokedex.owned,
-               DifferenceCategory::RequiredExactMismatch,
-               "pokedex.owned",
-               "different",
-               "different");
+                   DifferenceCategory::RequiredExactMismatch,
+                   "pokedex.owned",
+                   "different",
+                   "different");
             add_if(expected.pokedex.seen != actual.pokedex.seen,
-               DifferenceCategory::RequiredExactMismatch,
-               "pokedex.seen",
-               "different",
-               "different");
+                   DifferenceCategory::RequiredExactMismatch,
+                   "pokedex.seen",
+                   "different",
+                   "different");
             add_if(expected.pokedex.ownedCount != actual.pokedex.ownedCount,
-               DifferenceCategory::DerivedMismatch,
-               "pokedex.ownedCount",
-               std::to_string(expected.pokedex.ownedCount),
-               std::to_string(actual.pokedex.ownedCount));
+                   DifferenceCategory::DerivedMismatch,
+                   "pokedex.ownedCount",
+                   std::to_string(expected.pokedex.ownedCount),
+                   std::to_string(actual.pokedex.ownedCount));
             add_if(expected.pokedex.seenCount != actual.pokedex.seenCount,
-               DifferenceCategory::DerivedMismatch,
-               "pokedex.seenCount",
-               std::to_string(expected.pokedex.seenCount),
-               std::to_string(actual.pokedex.seenCount));
+                   DifferenceCategory::DerivedMismatch,
+                   "pokedex.seenCount",
+                   std::to_string(expected.pokedex.seenCount),
+                   std::to_string(actual.pokedex.seenCount));
         }
+
         if (options.compareParty) {
             PartyComparisonRules::Compare(expected.party, actual.party, add_if);
         }
+        if (options.compareStorage) {
+            StorageComparisonRules::Compare(expected.storage, actual.storage, add_if);
+        }
         if (options.compareDaycare) {
-            add_if(expected.daycare != actual.daycare,
-               DifferenceCategory::PermittedCanonicalDifference,
-               "daycare",
-               expected.daycare.inUse ? "true" : "false",
-               actual.daycare.inUse ? "true" : "false");
+            CompareDaycare(expected.daycare, actual.daycare, add_if);
         }
         if (options.compareHallOfFame) {
-            add_if(expected.hallOfFame != actual.hallOfFame,
-               DifferenceCategory::PermittedCanonicalDifference,
-               "hallOfFame",
-               std::to_string(expected.hallOfFame.entryCount),
-               std::to_string(actual.hallOfFame.entryCount));
+            CompareHallOfFame(expected.hallOfFame, actual.hallOfFame, add_if);
         }
-        if (options.compareEventSubset) {
-            add_if(expected.eventSubset.visitedTowns != actual.eventSubset.visitedTowns,
-               DifferenceCategory::RequiredExactMismatch,
-               "eventSubset.visitedTowns",
-               "different",
-               "different");
-            add_if(expected.eventSubset.hiddenItems != actual.eventSubset.hiddenItems,
-               DifferenceCategory::RequiredExactMismatch,
-               "eventSubset.hiddenItems",
-               "different",
-               "different");
-            add_if(expected.eventSubset.hiddenCoins != actual.eventSubset.hiddenCoins,
-               DifferenceCategory::RequiredExactMismatch,
-               "eventSubset.hiddenCoins",
-               "different",
-               "different");
+        if (options.compareWorldSubset) {
+            CompareVisitedTowns(expected.visitedTowns, actual.visitedTowns, add_if);
+            CompareHiddenObjects(expected.hiddenItems, actual.hiddenItems, "hiddenItems", add_if);
+            CompareHiddenObjects(expected.hiddenCoins, actual.hiddenCoins, "hiddenCoins", add_if);
         }
+        if (options.compareMissableObjects) {
+            CompareMissableObjects(expected.missableObjects, actual.missableObjects, add_if);
+        }
+        if (options.compareEvents) {
+            CompareNamedFlags(expected.events, actual.events, "events.flags", add_if);
+        }
+        if (options.compareTrainerBattles) {
+            CompareNamedFlags(expected.trainerBattles, actual.trainerBattles, "trainerBattles.records", add_if);
+        }
+        if (options.compareStaticBattles) {
+            CompareNamedFlags(expected.staticBattles, actual.staticBattles, "staticBattles.records", add_if);
+        }
+        if (options.compareStoryProgress) {
+            CompareNamedFlags(expected.storyProgress, actual.storyProgress, "storyProgress.storyFlags", add_if);
+        }
+        if (options.compareScripts) {
+            CompareScripts(expected.scripts, actual.scripts, add_if);
+        }
+
         return differences;
+    }
+
+    static bool HasBlockingDifferences(const std::vector<Difference>& differences) {
+        for (const auto& difference : differences) {
+            if (difference.category != DifferenceCategory::PermittedCanonicalDifference) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static const char* CategoryLabel(DifferenceCategory category) {
@@ -205,6 +165,322 @@ public:
                 return "permitted-canonical-difference";
         }
         return "unknown";
+    }
+
+private:
+    template <typename AddFn>
+    static void CompareDaycare(const model::DaycareState& expected,
+                               const model::DaycareState& actual,
+                               AddFn&& add_if) {
+        add_if(expected.inUse != actual.inUse,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.inUse",
+               expected.inUse ? "true" : "false",
+               actual.inUse ? "true" : "false");
+        if (expected.inUse != actual.inUse || !expected.inUse) {
+            return;
+        }
+        add_if(expected.pokemon.has_value() != actual.pokemon.has_value(),
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.present",
+               expected.pokemon.has_value() ? "true" : "false",
+               actual.pokemon.has_value() ? "true" : "false");
+        if (!expected.pokemon.has_value() || !actual.pokemon.has_value()) {
+            return;
+        }
+        const auto& expectedMon = expected.pokemon.value();
+        const auto& actualMon = actual.pokemon.value();
+        add_if(expectedMon.speciesId != actualMon.speciesId,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.speciesId",
+               std::to_string(expectedMon.speciesId),
+               std::to_string(actualMon.speciesId));
+        add_if(expectedMon.nickname != actualMon.nickname,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.nickname",
+               expectedMon.nickname,
+               actualMon.nickname);
+        add_if(expectedMon.originalTrainerName != actualMon.originalTrainerName,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.originalTrainerName",
+               expectedMon.originalTrainerName,
+               actualMon.originalTrainerName);
+        add_if(expectedMon.originalTrainerId != actualMon.originalTrainerId,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.originalTrainerId",
+               std::to_string(expectedMon.originalTrainerId),
+               std::to_string(actualMon.originalTrainerId));
+        add_if(expectedMon.experience != actualMon.experience,
+               DifferenceCategory::RequiredExactMismatch,
+               "daycare.pokemon.experience",
+               std::to_string(expectedMon.experience),
+               std::to_string(actualMon.experience));
+        add_if(expectedMon.level != actualMon.level,
+               DifferenceCategory::PermittedCanonicalDifference,
+               "daycare.pokemon.level",
+               std::to_string(expectedMon.level),
+               std::to_string(actualMon.level));
+    }
+
+    template <typename AddFn>
+    static void CompareHallOfFame(const model::HallOfFameState& expected,
+                                  const model::HallOfFameState& actual,
+                                  AddFn&& add_if) {
+        add_if(expected.entryCount != actual.entryCount,
+               DifferenceCategory::RequiredExactMismatch,
+               "hallOfFame.entryCount",
+               std::to_string(expected.entryCount),
+               std::to_string(actual.entryCount));
+        add_if(expected.entries.size() != actual.entries.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               "hallOfFame.entries.length",
+               std::to_string(expected.entries.size()),
+               std::to_string(actual.entries.size()));
+        const std::size_t sharedEntries = std::min(expected.entries.size(), actual.entries.size());
+        for (std::size_t entryIndex = 0; entryIndex < sharedEntries; ++entryIndex) {
+            const std::string prefix = "hallOfFame.entries[" + std::to_string(entryIndex) + "]";
+            const auto& expectedEntry = expected.entries[entryIndex];
+            const auto& actualEntry = actual.entries[entryIndex];
+            add_if(expectedEntry.entryNumber != actualEntry.entryNumber,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".entryNumber",
+                   std::to_string(expectedEntry.entryNumber),
+                   std::to_string(actualEntry.entryNumber));
+            add_if(expectedEntry.pokemon.size() != actualEntry.pokemon.size(),
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".pokemon.length",
+                   std::to_string(expectedEntry.pokemon.size()),
+                   std::to_string(actualEntry.pokemon.size()));
+            const std::size_t sharedMons = std::min(expectedEntry.pokemon.size(), actualEntry.pokemon.size());
+            for (std::size_t monIndex = 0; monIndex < sharedMons; ++monIndex) {
+                const std::string monPrefix = prefix + ".pokemon[" + std::to_string(monIndex) + "]";
+                const auto& expectedMon = expectedEntry.pokemon[monIndex];
+                const auto& actualMon = actualEntry.pokemon[monIndex];
+                add_if(expectedMon.partyOrder != actualMon.partyOrder,
+                       DifferenceCategory::RequiredExactMismatch,
+                       monPrefix + ".partyOrder",
+                       std::to_string(expectedMon.partyOrder),
+                       std::to_string(actualMon.partyOrder));
+                add_if(expectedMon.speciesId != actualMon.speciesId,
+                       DifferenceCategory::RequiredExactMismatch,
+                       monPrefix + ".speciesId",
+                       std::to_string(expectedMon.speciesId),
+                       std::to_string(actualMon.speciesId));
+                add_if(expectedMon.level != actualMon.level,
+                       DifferenceCategory::RequiredExactMismatch,
+                       monPrefix + ".level",
+                       std::to_string(expectedMon.level),
+                       std::to_string(actualMon.level));
+                add_if(expectedMon.nickname != actualMon.nickname,
+                       DifferenceCategory::RequiredExactMismatch,
+                       monPrefix + ".nickname",
+                       expectedMon.nickname,
+                       actualMon.nickname);
+            }
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareVisitedTowns(const std::vector<model::VisitedTownState>& expected,
+                                    const std::vector<model::VisitedTownState>& actual,
+                                    AddFn&& add_if) {
+        add_if(expected.size() != actual.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               "visitedTowns.length",
+               std::to_string(expected.size()),
+               std::to_string(actual.size()));
+        const std::size_t shared = std::min(expected.size(), actual.size());
+        for (std::size_t index = 0; index < shared; ++index) {
+            const std::string prefix = "visitedTowns[" + std::to_string(index) + "]";
+            add_if(expected[index].index != actual[index].index,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".index",
+                   std::to_string(expected[index].index),
+                   std::to_string(actual[index].index));
+            add_if(expected[index].visited != actual[index].visited,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".visited",
+                   expected[index].visited ? "true" : "false",
+                   actual[index].visited ? "true" : "false");
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareHiddenObjects(const std::vector<model::HiddenObjectState>& expected,
+                                     const std::vector<model::HiddenObjectState>& actual,
+                                     const std::string& fieldName,
+                                     AddFn&& add_if) {
+        add_if(expected.size() != actual.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               fieldName + ".length",
+               std::to_string(expected.size()),
+               std::to_string(actual.size()));
+        const std::size_t shared = std::min(expected.size(), actual.size());
+        for (std::size_t index = 0; index < shared; ++index) {
+            const std::string prefix = fieldName + "[" + std::to_string(index) + "]";
+            add_if(expected[index].index != actual[index].index,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".index",
+                   std::to_string(expected[index].index),
+                   std::to_string(actual[index].index));
+            add_if(expected[index].collected != actual[index].collected,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".collected",
+                   expected[index].collected ? "true" : "false",
+                   actual[index].collected ? "true" : "false");
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareMissableObjects(const std::vector<model::MissableObjectState>& expected,
+                                       const std::vector<model::MissableObjectState>& actual,
+                                       AddFn&& add_if) {
+        add_if(expected.size() != actual.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               "missableObjects.length",
+               std::to_string(expected.size()),
+               std::to_string(actual.size()));
+        const std::size_t shared = std::min(expected.size(), actual.size());
+        for (std::size_t index = 0; index < shared; ++index) {
+            const std::string prefix = "missableObjects[" + std::to_string(index) + "]";
+            add_if(expected[index].index != actual[index].index,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".index",
+                   std::to_string(expected[index].index),
+                   std::to_string(actual[index].index));
+            add_if(expected[index].toggledOff != actual[index].toggledOff,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".toggledOff",
+                   expected[index].toggledOff ? "true" : "false",
+                   actual[index].toggledOff ? "true" : "false");
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareNamedFlags(const std::vector<model::NamedFlagState>& expected,
+                                  const std::vector<model::NamedFlagState>& actual,
+                                  const std::string& fieldName,
+                                  AddFn&& add_if) {
+        add_if(expected.size() != actual.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               fieldName + ".length",
+               std::to_string(expected.size()),
+               std::to_string(actual.size()));
+        const std::size_t shared = std::min(expected.size(), actual.size());
+        for (std::size_t index = 0; index < shared; ++index) {
+            const std::string prefix = fieldName + "[" + std::to_string(index) + "]";
+            add_if(expected[index].flagIndex != actual[index].flagIndex,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".flagIndex",
+                   std::to_string(expected[index].flagIndex),
+                   std::to_string(actual[index].flagIndex));
+            add_if(expected[index].set != actual[index].set,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".set",
+                   expected[index].set ? "true" : "false",
+                   actual[index].set ? "true" : "false");
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareScripts(const std::vector<model::ScriptState>& expected,
+                               const std::vector<model::ScriptState>& actual,
+                               AddFn&& add_if) {
+        add_if(expected.size() != actual.size(),
+               DifferenceCategory::RequiredExactMismatch,
+               "scripts.length",
+               std::to_string(expected.size()),
+               std::to_string(actual.size()));
+        const std::size_t shared = std::min(expected.size(), actual.size());
+        for (std::size_t index = 0; index < shared; ++index) {
+            const std::string prefix = "scripts[" + std::to_string(index) + "]";
+            add_if(expected[index].index != actual[index].index,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".index",
+                   std::to_string(expected[index].index),
+                   std::to_string(actual[index].index));
+            add_if(expected[index].relativeOffset != actual[index].relativeOffset,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".relativeOffset",
+                   std::to_string(expected[index].relativeOffset),
+                   std::to_string(actual[index].relativeOffset));
+            add_if(expected[index].size != actual[index].size,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".size",
+                   std::to_string(expected[index].size),
+                   std::to_string(actual[index].size));
+            add_if(expected[index].value != actual[index].value,
+                   DifferenceCategory::RequiredExactMismatch,
+                   prefix + ".value",
+                   std::to_string(expected[index].value),
+                   std::to_string(actual[index].value));
+        }
+    }
+
+    template <typename AddFn>
+    static void CompareCore(const model::CoreState& expected,
+                            const model::CoreState& actual,
+                            AddFn&& add_if) {
+        add_if(expected.optionsByte != actual.optionsByte,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.optionsByte",
+               std::to_string(expected.optionsByte),
+               std::to_string(actual.optionsByte));
+        add_if(expected.letterDelayByte != actual.letterDelayByte,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.letterDelayByte",
+               std::to_string(expected.letterDelayByte),
+               std::to_string(actual.letterDelayByte));
+        add_if(expected.contrast != actual.contrast,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.contrast",
+               std::to_string(expected.contrast),
+               std::to_string(actual.contrast));
+        add_if(expected.badgesBitfield != actual.badgesBitfield,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.badgesBitfield",
+               std::to_string(expected.badgesBitfield),
+               std::to_string(actual.badgesBitfield));
+        add_if(expected.money != actual.money,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.money",
+               std::to_string(expected.money),
+               std::to_string(actual.money));
+        add_if(expected.coins != actual.coins,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.coins",
+               std::to_string(expected.coins),
+               std::to_string(actual.coins));
+        add_if(expected.mapId != actual.mapId,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.mapId",
+               std::to_string(expected.mapId),
+               std::to_string(actual.mapId));
+        add_if(expected.x != actual.x,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.x",
+               std::to_string(expected.x),
+               std::to_string(actual.x));
+        add_if(expected.y != actual.y,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.y",
+               std::to_string(expected.y),
+               std::to_string(actual.y));
+        add_if(expected.playHours != actual.playHours,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.playHours",
+               std::to_string(expected.playHours),
+               std::to_string(actual.playHours));
+        add_if(expected.playMinutes != actual.playMinutes,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.playMinutes",
+               std::to_string(expected.playMinutes),
+               std::to_string(actual.playMinutes));
+        add_if(expected.playSeconds != actual.playSeconds,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.playSeconds",
+               std::to_string(expected.playSeconds),
+               std::to_string(actual.playSeconds));
     }
 };
 

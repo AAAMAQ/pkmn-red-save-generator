@@ -13,6 +13,22 @@ struct RangeLedgerEntry {
     std::size_t endInclusive = 0;
     std::string classification;
     std::string reason;
+    std::string serializerName;
+    std::string semanticPath;
+    std::string previousBytesHex;
+    std::string newBytesHex;
+    std::string previousSha256;
+    std::string newSha256;
+    bool byteSampleTruncated = false;
+};
+
+struct RangeOverlapEntry {
+    std::size_t firstRangeIndex = 0;
+    std::size_t secondRangeIndex = 0;
+    std::size_t start = 0;
+    std::size_t endInclusive = 0;
+    std::string firstReason;
+    std::string secondReason;
 };
 
 struct GenerationReport {
@@ -28,6 +44,7 @@ struct GenerationReport {
     bool physicalImageIgnored = false;
     std::size_t outputSize = 0;
     std::vector<RangeLedgerEntry> ranges;
+    std::vector<RangeOverlapEntry> overlappingWrites;
     std::vector<std::string> fieldsWritten;
     std::vector<std::string> warnings;
 
@@ -46,13 +63,31 @@ struct GenerationReport {
         json["physicalImageIgnored"] = physicalImageIgnored;
         json["fieldsWritten"] = fieldsWritten;
         json["warnings"] = warnings;
+        json["overlappingWrites"] = nlohmann::json::array();
+        for (const auto& overlap : overlappingWrites) {
+            json["overlappingWrites"].push_back({
+                {"firstRangeIndex", overlap.firstRangeIndex},
+                {"secondRangeIndex", overlap.secondRangeIndex},
+                {"start", overlap.start},
+                {"endInclusive", overlap.endInclusive},
+                {"firstReason", overlap.firstReason},
+                {"secondReason", overlap.secondReason}
+            });
+        }
         json["ranges"] = nlohmann::json::array();
         for (const auto& range : ranges) {
             json["ranges"].push_back({
                 {"start", range.start},
                 {"endInclusive", range.endInclusive},
                 {"classification", range.classification},
-                {"reason", range.reason}
+                {"reason", range.reason},
+                {"serializerName", range.serializerName},
+                {"semanticPath", range.semanticPath},
+                {"previousBytesHex", range.previousBytesHex},
+                {"newBytesHex", range.newBytesHex},
+                {"previousSha256", range.previousSha256},
+                {"newSha256", range.newSha256},
+                {"byteSampleTruncated", range.byteSampleTruncated}
             });
         }
         return json;

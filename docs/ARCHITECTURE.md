@@ -69,10 +69,19 @@ Deferred cleanup:
 - `InventoryState`
 - `PartyState`
 - `PartyPokemonState`
-- `PartyMoveState`
+- `PokemonMoveState`
+- `StoredPokemonState`
+- `StorageState`
+- `StorageBoxState`
+- `DaycareState`
+- `HallOfFameState`
+- `NamedFlagState`
+- `ScriptState`
+- `MissableObjectState`
+- `HiddenObjectState`
+- `VisitedTownState`
 - `PokemonDVState`
 - `PokemonStatExperienceState`
-- `EventSubsetState`
 
 ### Encoding And Primitive Rules
 
@@ -96,14 +105,18 @@ Deferred cleanup:
 - `CoreStateSerializer`
 - `PartySerializer`
 - `PartyValidator`
+- `StorageSerializer`
+- `StorageValidator`
+- `DaycareSerializer`
+- `HallOfFameSerializer`
+- `ExtendedWorldSerializer`
 - `PokemonStatCalculator`
 - `MinimalSaveGenerator`
 
 ### Integrity
 
 - `ChecksumAlgorithms`
-- `MainChecksumWriter`
-- `BankChecksumWriter` (deferred)
+- `BoxChecksumWriter`
 - `IntegrityValidator`
 
 ### Verification And Reporting
@@ -154,8 +167,16 @@ target .red.json
   - party count, species list, terminator, OT names, nicknames, and all six party records
   - field-aware party comparison down to indexed move, PP, DV, Stat Experience, and text paths
   - deterministic party generation that remains independent of target `physicalImage`
-- Milestone 4 still defers:
-  - permanent PC storage serialization
-  - daycare occupancy reconstruction
-  - Hall of Fame reconstruction
-  - broader story and battle event coverage
+- Milestone 5 and the current paused Milestone 6 implementation experimentally own:
+  - all 12 permanent PC boxes
+  - selected-box byte and current-box cache synchronization
+  - per-box and bank-level storage checksums
+  - daycare occupancy and stored Pokemon
+  - Hall of Fame record count and entries
+  - named event, trainer-battle, static-battle, and story-progress flags
+  - persistent script bytes, missable objects, hidden items, hidden coins, and visited towns
+- The largest remaining architecture gap is location safety:
+  - the validator now accepts only the emulator-validated Red's-house baseline
+  - Viridian City Pokemon Center was disabled after immediate post-Continue corruption
+  - broader map coverage requires a complete map-runtime cluster serializer, duplicate synchronization, and emulator evidence before re-enablement
+- Generation reports now include byte provenance for declared ranges and reject undeclared non-template overlaps before writing output reports.

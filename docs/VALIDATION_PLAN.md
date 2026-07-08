@@ -1,6 +1,6 @@
 # Validation Plan
 
-Milestone 1 implements the first validation layers. Generation validation is now implemented through Milestone 4 for the currently owned semantic surface.
+Milestone 1 implements the first validation layers. Generation validation is now implemented through the current Milestone 5 and Milestone 6 code surface for the currently owned semantic state.
 
 ## Stage 1: Input Validation
 
@@ -54,6 +54,13 @@ Milestone 1 implements the first validation layers. Generation validation is now
   - full active-party count and species-list structure
   - party record field bounds, move packing, name encodability, and HP/status invariants
   - deterministic party serialization independent of target `physicalImage`
+- Experimental Milestone 5 and paused Milestone 6 code now additionally validate:
+  - all 12 permanent boxes
+  - current-box cache agreement with the selected permanent box
+  - per-box checksums and bank 2 and 3 all-box checksums
+  - daycare occupancy consistency
+  - Hall of Fame record count and entry structure
+  - event-flag source agreement across `events`, `trainerBattles`, `staticBattles`, and `storyProgress`
 
 ## Stage 5: Independent Reparse
 
@@ -76,6 +83,36 @@ Eventually confirm:
 - party, boxes, inventory, Pokedex, and location load safely
 - no corruption warning appears
 - game can save again
+
+Mandatory base-load gate for every storage or extended-state save:
+
+1. title screen renders normally
+2. Continue appears
+3. selecting Continue loads without corruption
+4. player appears on expected map
+5. screen tiles and text are normal
+6. movement works
+7. menu opens
+8. trainer page opens
+9. party page opens
+10. save can be performed normally
+
+Milestone 5 PC-storage gate after base load:
+
+- open Bill's PC
+- open Pokemon storage
+- inspect current box
+- inspect at least one occupied box
+- withdraw one Pokemon
+- deposit one Pokemon
+- switch boxes
+- accept any game-triggered box save
+- return to gameplay
+- save normally
+- close emulator
+- reparse post-save output
+- compare party, all boxes, selected box, and current-box cache
+- validate all storage checksums
 
 Milestone 2 emulator-load evidence now recorded:
 
@@ -107,6 +144,31 @@ Milestone 4 emulator save-again evidence is now also recorded for the approved l
 - the emulator-written file was byte-identical to the preserved pre-emulator save
 - Save Genie reparsed the post-save file successfully
 - generator-side semantic comparison still reported `PASS`
+
+Current Milestone 5 and Milestone 6 automated/private-fixture evidence before emulator testing:
+
+- the private full semantic fixture now generates successfully without using target `physicalImage`
+- Save Genie reparses the generated full-fixture save successfully
+- generator-side semantic comparison reports `PASS with permitted canonical differences`
+- the only reported permitted differences are a small set of boxed `level` fields whose source values are implausible oracle decodes
+- all permanent box checksums and bank 2 and 3 all-box checksums validate on generated output
+- generating from the original fixture, a version with `physicalImage` removed, and a version with replaced `physicalImage` produced byte-identical `.sav` outputs
+
+Current Milestone 5 and Milestone 6 emulator evidence:
+
+- title screen and Continue appeared normally
+- the original full Milestone 5-6 save corrupted immediately after selecting Continue
+- no movement, menu access, PC interaction, box switching, or save occurred before the original failure
+- the corrected Red's-house storage diagnostic now passes the base-load gate
+- PC storage viewing passed provisionally after gameplay progression was used to reach Bill's PC
+- visual box counts matched `[20, 18, 17, 19, 20, 17, 0, 0, 0, 0, 0, 5]`
+- a cache-aware Save Genie comparison found no storage mismatches in the post-gameplay save
+- a controlled-interaction candidate validated deposit into Box 11, selected-box cache behavior, Box 3 write-back, all per-box checksums, and Bank 2/3 all-box checksums
+- the final post-withdrawal artifact validated selected/current Box 12, withdrawn `RED` in party slot 6, deposited `PEGGY` in permanent Box 11, active Box 12 current-box cache, all per-box checksums, and Bank 2/3 all-box checksums
+- controlled deposit, withdraw, box-switch, save-again, and post-save comparison passed for Milestone 5
+- the failure is documented in `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
+- direct full-fixture generation now fails closed because the source location is not in the emulator-validated location set
+- Milestone 6 remains incomplete until Daycare, Hall of Fame, broader event/world-state, safe-location, and emulator save-again validation pass
 
 Pokedex verification wording for Milestone 3 must remain precise:
 
@@ -169,8 +231,7 @@ Milestone 1 proof:
 
 Milestone 2 now has an automated minimal generator, main checksum regeneration, Save Genie reparse, deterministic-output proof, and field-aware comparison for owned minimal fields.
 
-Remaining Milestone 2 limitation:
+Current open validation gap:
 
-- emulator load and save-again reparse evidence have now been confirmed for the approved Milestone 3 local validation path
-- permanent PC storage remains preserved canonical inherited state under Policy A and is still not serialized semantically
-- broader event-state serialization remains deferred to Milestone 5 and later
+- emulator PC interaction for Milestone 5
+- emulator Daycare, Hall of Fame, and broader navigation interaction for Milestone 6

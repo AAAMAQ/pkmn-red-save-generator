@@ -72,9 +72,11 @@ public:
         if (decoded != nullptr) {
             const std::vector<std::vector<std::string>> requiredPaths = {
                 {"trainer"}, {"rival"}, {"options"}, {"playtime"}, {"moneyAndCoins"},
-                {"badges"}, {"location"}, {"pokedex"}, {"inventory"}, {"party"},
-                {"daycare"}, {"hallOfFame"},
-                {"visitedTowns"}, {"hiddenItems"}, {"hiddenCoins"}
+                {"badges"}, {"location"}, {"runtimeState"}, {"pokedex"}, {"inventory"}, {"party"},
+                {"pcStorage"}, {"currentBoxCache"}, {"daycare"}, {"hallOfFame"},
+                {"events"}, {"trainerBattles"}, {"staticBattles"}, {"storyProgress"},
+                {"scripts"}, {"missableObjects"}, {"visitedTowns"}, {"hiddenItems"},
+                {"hiddenCoins"}, {"worldState"}
             };
             for (const auto& path : requiredPaths) {
                 const std::string label = "decoded." + path.front();

@@ -143,7 +143,14 @@ private:
                           std::size_t endInclusive,
                           const std::string& classification,
                           const std::string& reason) {
-        report.ranges.push_back({start, endInclusive, classification, reason});
+        report.ranges.push_back({
+            start,
+            endInclusive,
+            classification,
+            reason,
+            "PartySerializer",
+            reason
+        });
     }
 };
 

@@ -171,8 +171,8 @@ private:
         std::cout << "Main checksum valid: " << (result.integrity.mainChecksumValid ? "yes" : "no") << "\n";
         std::cout << "Bank 2 all checksum valid: " << (result.integrity.bank2ChecksumValid ? "yes" : "no") << "\n";
         std::cout << "Bank 3 all checksum valid: " << (result.integrity.bank3ChecksumValid ? "yes" : "no") << "\n";
-        std::cout << "Bank storage unchanged from template: "
-                  << (result.integrity.bankStorageUnchanged ? "yes" : "no") << "\n";
+        std::cout << "Current-box cache synchronized: "
+                  << (result.integrity.currentBoxCacheSynchronized ? "yes" : "no") << "\n";
         for (const std::string& warning : result.report.warnings) {
             std::cout << "warning: " << warning << "\n";
         }
@@ -203,17 +203,34 @@ private:
         }
 
         comparison::ComparisonOptions options;
-        options.compareDaycare = false;
-        options.compareHallOfFame = false;
-        options.compareEventSubset = true;
+        options.compareDaycare = true;
+        options.compareHallOfFame = true;
+        options.compareWorldSubset = true;
+        options.compareMissableObjects = true;
+        options.compareEvents = true;
+        options.compareTrainerBattles = true;
+        options.compareStaticBattles = true;
+        options.compareStoryProgress = true;
+        options.compareScripts = true;
         const auto differences = comparison::SemanticComparator::CompareOwnedFields(
             contract.expectedSemantic, actualSemantic.state, options);
         if (differences.empty()) {
-            std::cout << "Milestone 4 semantic comparison: PASS\n";
+            std::cout << "Semantic comparison: PASS\n";
             return 0;
         }
 
-        std::cout << "Milestone 4 semantic comparison: FAIL\n";
+        if (!comparison::SemanticComparator::HasBlockingDifferences(differences)) {
+            std::cout << "Semantic comparison: PASS with permitted canonical differences\n";
+            for (const auto& difference : differences) {
+                std::cout << difference.fieldPath
+                          << " [" << comparison::SemanticComparator::CategoryLabel(difference.category) << "]"
+                          << ": expected=" << difference.expectedValue
+                          << " actual=" << difference.actualValue << "\n";
+            }
+            return 0;
+        }
+
+        std::cout << "Semantic comparison: FAIL\n";
         for (const auto& difference : differences) {
             std::cout << difference.fieldPath
                       << " [" << comparison::SemanticComparator::CategoryLabel(difference.category) << "]"

@@ -61,6 +61,26 @@ public:
         return encoding::PrimitiveWriter::ReadU8(buffer, encoding::Gen1Layout::Bank3AllChecksumOff) ==
                ComputeBank3AllChecksum(buffer);
     }
+
+    static std::uint8_t ComputeBoxChecksum(const std::vector<std::uint8_t>& buffer,
+                                           int boxIndex1to12) {
+        if (boxIndex1to12 < 1 || boxIndex1to12 > 12) {
+            throw std::invalid_argument("box index must be in 1..12");
+        }
+        const std::size_t start = encoding::Gen1Layout::PermanentBoxOffsets[static_cast<std::size_t>(boxIndex1to12 - 1)];
+        return ComputeComplementOfSum(buffer, start, start + encoding::Gen1Layout::BoxBlockSize - 1U);
+    }
+
+    static bool ValidateBoxChecksum(const std::vector<std::uint8_t>& buffer,
+                                    int boxIndex1to12) {
+        const std::size_t tableBase =
+            (boxIndex1to12 <= 6) ? encoding::Gen1Layout::Bank2BoxChecksumsOff
+                                 : encoding::Gen1Layout::Bank3BoxChecksumsOff;
+        const int withinBank = (boxIndex1to12 <= 6) ? (boxIndex1to12 - 1) : (boxIndex1to12 - 7);
+        return encoding::PrimitiveWriter::ReadU8(
+                   buffer, tableBase + static_cast<std::size_t>(withinBank)) ==
+               ComputeBoxChecksum(buffer, boxIndex1to12);
+    }
 };
 
 }  // namespace pkmn::savegen::integrity

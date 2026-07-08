@@ -59,6 +59,7 @@
 - current selected box semantics
 - current-box cache synchronization
 - bank and per-box checksum regeneration
+- status: implemented and emulator-validated through load, Bill's PC access, deposit, box switching, game-triggered save, withdrawal, normal save, post-save reparse, current-box cache validation, and storage checksum validation
 
 ## Milestone 6: Extended Systems
 
@@ -71,6 +72,7 @@
 - hidden items
 - hidden coins
 - visited towns and supported world-state values
+- status: next; non-baseline location support remains disabled until full map-runtime serialization is implemented and emulator-proven
 
 ## Milestone 7: Full Semantic Comparison
 

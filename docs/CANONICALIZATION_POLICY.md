@@ -83,9 +83,20 @@ The audited dummy template currently shows:
 
 Therefore:
 
-- inheriting permanent box ranges is not acceptable for any output that claims storage support
+- inheriting permanent box ranges is not acceptable for outputs that claim storage support
 - inheriting bank 2/3 checksum bytes is not acceptable
-- the dummy may only be used safely where the generator fully overwrites or intentionally excludes the affected regions
+- current generator builds fully overwrite permanent storage and regenerate all storage checksums
+- the dummy now remains inherited only for explicitly documented runtime and unknown-tail ranges
+
+## Current Milestone 5-6 Canonical Rules
+
+- permanent boxes are written from `decoded.pcStorage`
+- current-box cache is rewritten from the selected permanent box, not copied from input cache bytes
+- boxed and daycare stored levels are canonicalized from species growth plus experience because the current Save Genie boxed-level oracle is not yet reliable for every fixture record
+- named event-state is merged from `events`, `trainerBattles`, `staticBattles`, and `storyProgress`; conflicting flag claims fail generation
+- supported locations are fail-closed to the emulator-validated Red's-house baseline
+- Viridian City Pokemon Center and other non-baseline maps are disabled until full map-runtime bytes have semantic authority, synchronization rules, and emulator proof
+- generation reports include byte provenance for declared write ranges and generation fails on undeclared non-template overlaps
 
 ## Output-Length Policy
 

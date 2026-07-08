@@ -91,3 +91,57 @@
 
 - Decision: claim Milestone 3 Pokedex verification through Save Genie reparse and semantic comparison only
 - Reason: the generated save preserved the owned and seen bitfields, but the in-game Pokedex UI was not directly inspected because broader progression gating remains outside the current event subset
+
+## 2026-07-07
+
+### D-019: Retire Policy A for generated permanent storage
+
+- Decision: generated saves now fully rewrite all 12 permanent boxes, the selected-box cache, and all storage checksums
+- Reason: the committed dummy permanent storage is too suspicious to inherit once storage support exists
+
+### D-020: Make the selected permanent box the only storage write authority
+
+- Decision: `decoded.pcStorage` plus `decoded.currentBoxCache.selectedBoxNumber` define storage output, and the current-box cache is rewritten from the selected permanent box
+- Reason: this prevents stale or dummy cache bytes from surviving in generated output
+
+### D-021: Canonicalize boxed and daycare stored level from experience
+
+- Decision: boxed and daycare stored `level` are currently derived from species growth rate plus experience during generation
+- Reason: the current Save Genie boxed-level decode is not yet trustworthy for every real fixture record, while `experience` remains stable and semantically authoritative
+
+### D-022: Treat emulator load-time corruption as authoritative blocker
+
+- Decision: Milestone 5 is blocked and Milestone 6 is paused after the full generated save corrupted immediately after Continue
+- Reason: Save Genie reparse, checksum validation, semantic comparison, and deterministic output did not prove game-load safety
+
+### D-023: Fail closed to the Red's-house baseline location
+
+- Decision: remove the Viridian City Pokemon Center safe-location profile until the full map-runtime cluster is serialized and emulator-proven
+- Reason: binary analysis showed the failing save admitted Viridian location bytes while retaining Red's-house/dummy map-runtime pointers, dimensions, warp/object data, and adjacent runtime state
+
+### D-024: Require byte-provenance and overlap diagnostics for generation reports
+
+- Decision: generated reports now include per-range byte provenance and generation fails on undeclared non-template range overlaps
+- Reason: the preserved failing report contained broad overlapping ranges that could hide clobbers even when the final checksum was valid
+
+### D-025: Treat Save Genie incident outputs as diagnostic evidence only
+
+- Decision: Save Genie outputs generated from the failing Milestone 5-6 save may be used to investigate decoded structure and map/runtime coherence, but they are not acceptance evidence for emulator safety
+- Reason: the exact failing save decoded with valid checksums, valid party/storage summaries, and Viridian location semantics while still corrupting immediately after Continue
+
+### D-026: Treat corrected storage viewing as provisional Milestone 5 evidence
+
+- Decision: the corrected Red's-house storage diagnostic base-load result and PC box-list visual verification are positive Milestone 5 evidence, but not final completion evidence
+- Reason: gameplay progression occurred before Bill's PC was reached, so the post-test save includes expected gameplay changes and active current-box-cache state that must be separated from storage defects
+
+### D-027: Compare selected storage through the active current-box cache after gameplay
+
+- Decision: when a post-gameplay save has the current-box changed flag set, selected-box storage comparison must use the active current-box cache as the semantic authority for that selected box until the game-triggered box save or normal save synchronizes it
+- Reason: the post-gameplay save decoded permanent box 3 as empty while current-box cache contained the expected 17 Pokemon; a cache-aware comparison found no storage mismatches and matches Gen I's current-box-cache model
+
+## 2026-07-08
+
+### D-028: Close Milestone 5 after final post-withdrawal storage evidence
+
+- Decision: Milestone 5 PC storage generation is accepted as complete after the final emulator-controlled post-withdrawal save reparsed with valid main, Bank 2, Bank 3, and per-box checksums
+- Reason: the final artifact proved current Box 12 cache behavior, deposited `PEGGY` in permanent Box 11, withdrawn fainted `RED` in the party, no observed storage corruption, and successful game-triggered plus normal save flows

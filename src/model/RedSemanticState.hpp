@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -37,6 +38,21 @@ struct CoreState {
     std::uint8_t mapId = 0;
     std::uint8_t x = 0;
     std::uint8_t y = 0;
+    std::uint8_t previousMapId = 0;
+    std::uint8_t xBlockCoord = 0;
+    std::uint8_t yBlockCoord = 0;
+    std::string movementMode;
+    std::string playerMoveDirection;
+    std::string playerCurrentDirection;
+    bool strengthOutsideBattle = false;
+    bool surfingAllowed = false;
+    bool flyOutOfBattle = false;
+    bool isBattle = false;
+    bool isTrainerBattle = false;
+    bool countPlaytime = false;
+    bool safariGameOver = false;
+    std::uint8_t safariBallCount = 0;
+    std::uint16_t safariSteps = 0;
     std::uint32_t money = 0;
     std::uint16_t coins = 0;
     int playHours = 0;
@@ -62,13 +78,13 @@ struct InventoryState {
     bool operator==(const InventoryState&) const = default;
 };
 
-struct PartyMoveState {
+struct PokemonMoveState {
     std::uint8_t moveId = 0;
     std::string moveName;
     std::uint8_t ppCurrent = 0;
     std::uint8_t ppUps = 0;
 
-    bool operator==(const PartyMoveState&) const = default;
+    bool operator==(const PokemonMoveState&) const = default;
 };
 
 struct PokemonStatExperienceState {
@@ -111,7 +127,7 @@ struct PartyPokemonState {
     std::uint16_t defense = 0;
     std::uint16_t speed = 0;
     std::uint16_t special = 0;
-    std::vector<PartyMoveState> moves;
+    std::vector<PokemonMoveState> moves;
     PokemonStatExperienceState statExperience;
     PokemonDVState dvs;
 
@@ -125,24 +141,127 @@ struct PartyState {
     bool operator==(const PartyState&) const = default;
 };
 
+struct StoredPokemonState {
+    int position = 0;
+    std::uint8_t speciesId = 0;
+    std::string speciesName;
+    std::uint8_t nationalDexNumber = 0;
+    std::string nickname;
+    std::string originalTrainerName;
+    std::uint16_t originalTrainerId = 0;
+    std::uint8_t level = 0;
+    std::uint32_t experience = 0;
+    std::uint8_t statusRaw = 0;
+    std::uint8_t type1 = 0;
+    std::uint8_t type2 = 0;
+    std::uint8_t catchRate = 0;
+    std::uint16_t currentHp = 0;
+    std::vector<PokemonMoveState> moves;
+    PokemonStatExperienceState statExperience;
+    PokemonDVState dvs;
+
+    bool operator==(const StoredPokemonState&) const = default;
+};
+
+struct StorageBoxState {
+    int boxNumber = 0;
+    int count = 0;
+    std::vector<StoredPokemonState> pokemon;
+
+    bool operator==(const StorageBoxState&) const = default;
+};
+
+struct StorageState {
+    std::vector<StorageBoxState> boxes;
+    int selectedBoxNumber = 1;
+    bool boxChangedFlag = false;
+    bool hasCurrentBoxCache = false;
+    StorageBoxState currentBoxCache;
+    std::string inputSynchronizationStatus;
+
+    bool operator==(const StorageState&) const = default;
+};
+
 struct DaycareState {
     bool inUse = false;
+    std::optional<StoredPokemonState> pokemon;
 
     bool operator==(const DaycareState&) const = default;
 };
 
+struct HallOfFamePokemonState {
+    int partyOrder = 0;
+    std::uint8_t speciesId = 0;
+    std::string speciesName;
+    std::uint8_t nationalDexNumber = 0;
+    std::uint8_t level = 0;
+    std::string nickname;
+
+    bool operator==(const HallOfFamePokemonState&) const = default;
+};
+
+struct HallOfFameEntryState {
+    int entryNumber = 0;
+    std::vector<HallOfFamePokemonState> pokemon;
+
+    bool operator==(const HallOfFameEntryState&) const = default;
+};
+
 struct HallOfFameState {
     int entryCount = 0;
+    std::vector<HallOfFameEntryState> entries;
 
     bool operator==(const HallOfFameState&) const = default;
 };
 
-struct EventSubsetState {
-    std::vector<bool> visitedTowns;
-    std::vector<bool> hiddenItems;
-    std::vector<bool> hiddenCoins;
+struct NamedFlagState {
+    int flagIndex = 0;
+    std::string name;
+    std::string description;
+    bool set = false;
+    std::string category;
+    std::string location;
+    int trainerNumber = 0;
 
-    bool operator==(const EventSubsetState&) const = default;
+    bool operator==(const NamedFlagState&) const = default;
+};
+
+struct ScriptState {
+    int index = 0;
+    int relativeOffset = 0;
+    int size = 0;
+    int value = 0;
+    std::string mapOrScriptName;
+
+    bool operator==(const ScriptState&) const = default;
+};
+
+struct MissableObjectState {
+    int index = 0;
+    std::string name;
+    std::string location;
+    bool toggledOff = false;
+
+    bool operator==(const MissableObjectState&) const = default;
+};
+
+struct HiddenObjectState {
+    int index = 0;
+    std::string name;
+    std::string location;
+    int x = 0;
+    int y = 0;
+    bool collected = false;
+
+    bool operator==(const HiddenObjectState&) const = default;
+};
+
+struct VisitedTownState {
+    int index = 0;
+    std::string name;
+    bool visited = false;
+
+    bool operator==(const VisitedTownState&) const = default;
 };
 
 struct RedSemanticState {
@@ -156,9 +275,18 @@ struct RedSemanticState {
     PokedexState pokedex;
     InventoryState inventory;
     PartyState party;
+    StorageState storage;
     DaycareState daycare;
     HallOfFameState hallOfFame;
-    EventSubsetState eventSubset;
+    std::vector<NamedFlagState> events;
+    std::vector<NamedFlagState> trainerBattles;
+    std::vector<NamedFlagState> staticBattles;
+    std::vector<NamedFlagState> storyProgress;
+    std::vector<ScriptState> scripts;
+    std::vector<MissableObjectState> missableObjects;
+    std::vector<HiddenObjectState> hiddenItems;
+    std::vector<HiddenObjectState> hiddenCoins;
+    std::vector<VisitedTownState> visitedTowns;
 
     bool operator==(const RedSemanticState&) const = default;
 };
@@ -174,10 +302,6 @@ public:
     static BuildSemanticStateResult Build(const nlohmann::json& sanitizedDocument,
                                           bool physicalImageIgnored) {
         BuildSemanticStateResult result;
-
-        auto parse_hex_byte = [](const std::string& value) -> std::uint8_t {
-            return static_cast<std::uint8_t>(std::stoul(value, nullptr, 16));
-        };
 
         try {
             const nlohmann::json& schema = sanitizedDocument.at("schema");
@@ -203,13 +327,43 @@ public:
             state.core.contrast =
                 static_cast<std::uint8_t>(decoded.at("options").at("contrast").at("value").get<int>());
             state.core.badgesBitfield =
-                parse_hex_byte(decoded.at("badges").at("rawBitfield").get<std::string>().substr(2));
+                ParseHexByte(decoded.at("badges").at("rawBitfield").get<std::string>());
             state.core.mapId =
                 static_cast<std::uint8_t>(decoded.at("location").at("map").at("id").get<int>());
             state.core.x =
                 static_cast<std::uint8_t>(decoded.at("location").at("x").at("value").get<int>());
             state.core.y =
                 static_cast<std::uint8_t>(decoded.at("location").at("y").at("value").get<int>());
+            state.core.previousMapId = static_cast<std::uint8_t>(
+                decoded.at("location").at("previousMap").at("id").get<int>());
+            state.core.xBlockCoord =
+                static_cast<std::uint8_t>(decoded.at("runtimeState").at("xBlockCoord").get<int>());
+            state.core.yBlockCoord =
+                static_cast<std::uint8_t>(decoded.at("runtimeState").at("yBlockCoord").get<int>());
+            state.core.movementMode =
+                decoded.at("runtimeState").at("movementMode").get<std::string>();
+            state.core.playerMoveDirection =
+                decoded.at("runtimeState").at("playerMoveDirection").get<std::string>();
+            state.core.playerCurrentDirection =
+                decoded.at("runtimeState").at("playerCurrentDirection").get<std::string>();
+            state.core.safariGameOver =
+                decoded.at("runtimeState").at("safari").at("gameOver").get<bool>();
+            state.core.safariBallCount = static_cast<std::uint8_t>(
+                decoded.at("runtimeState").at("safari").at("ballCount").get<int>());
+            state.core.safariSteps = static_cast<std::uint16_t>(
+                decoded.at("runtimeState").at("safari").at("steps").get<int>());
+            state.core.strengthOutsideBattle =
+                decoded.at("runtimeState").at("flags").at("strengthOutsideBattle").get<bool>();
+            state.core.surfingAllowed =
+                decoded.at("runtimeState").at("flags").at("surfingAllowed").get<bool>();
+            state.core.flyOutOfBattle =
+                decoded.at("runtimeState").at("flags").at("flyOutOfBattle").get<bool>();
+            state.core.isBattle =
+                decoded.at("runtimeState").at("flags").at("isBattle").get<bool>();
+            state.core.isTrainerBattle =
+                decoded.at("runtimeState").at("flags").at("isTrainerBattle").get<bool>();
+            state.core.countPlaytime =
+                decoded.at("runtimeState").at("flags").at("countPlaytime").get<bool>();
             state.core.money =
                 static_cast<std::uint32_t>(decoded.at("moneyAndCoins").at("money").at("value").get<int>());
             state.core.coins =
@@ -246,86 +400,64 @@ public:
 
             state.party.count = decoded.at("party").at("count").get<int>();
             for (const auto& mon : decoded.at("party").at("pokemon")) {
-                PartyPokemonState partyMon;
-                partyMon.position = mon.at("position").get<int>();
-                partyMon.speciesId =
-                    static_cast<std::uint8_t>(mon.at("species").at("internalId").get<int>());
-                partyMon.speciesName = mon.at("species").at("name").get<std::string>();
-                partyMon.nationalDexNumber = static_cast<std::uint8_t>(
-                    mon.at("species").at("nationalDexNumber").get<int>());
-                partyMon.nickname = mon.at("nickname").at("value").get<std::string>();
-                partyMon.originalTrainerName =
-                    mon.at("originalTrainer").at("name").get<std::string>();
-                partyMon.originalTrainerId = static_cast<std::uint16_t>(
-                    mon.at("originalTrainer").at("idNo").get<int>());
-                partyMon.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
-                partyMon.experience =
-                    static_cast<std::uint32_t>(mon.at("experience").get<int>());
-                partyMon.statusRaw =
-                    parse_hex_byte(mon.at("status").at("rawByte").get<std::string>().substr(2));
-
-                const auto* speciesData = pokemon::FindSpeciesData(partyMon.speciesId);
-                if (speciesData == nullptr) {
-                    throw std::runtime_error(
-                        "decoded.party contains unsupported species id " +
-                        std::to_string(partyMon.speciesId) + ".");
-                }
-                partyMon.type1 = speciesData->type1;
-                partyMon.type2 = speciesData->type2;
-                partyMon.catchRate = speciesData->catchRate;
-
-                const nlohmann::json& stats = mon.at("stats");
-                partyMon.currentHp = static_cast<std::uint16_t>(stats.at("hpCurrent").get<int>());
-                partyMon.maxHp = static_cast<std::uint16_t>(stats.at("hpMax").get<int>());
-                partyMon.attack = static_cast<std::uint16_t>(stats.at("attack").get<int>());
-                partyMon.defense = static_cast<std::uint16_t>(stats.at("defense").get<int>());
-                partyMon.speed = static_cast<std::uint16_t>(stats.at("speed").get<int>());
-                partyMon.special = static_cast<std::uint16_t>(stats.at("special").get<int>());
-
-                const nlohmann::json& dvs = mon.at("dvs");
-                partyMon.dvs.hp = static_cast<std::uint8_t>(dvs.at("hp").get<int>());
-                partyMon.dvs.attack = static_cast<std::uint8_t>(dvs.at("attack").get<int>());
-                partyMon.dvs.defense = static_cast<std::uint8_t>(dvs.at("defense").get<int>());
-                partyMon.dvs.speed = static_cast<std::uint8_t>(dvs.at("speed").get<int>());
-                partyMon.dvs.special = static_cast<std::uint8_t>(dvs.at("special").get<int>());
-
-                const nlohmann::json& statExperience = mon.at("statExperience");
-                partyMon.statExperience.hp = static_cast<std::uint16_t>(
-                    statExperience.at("hp").get<int>());
-                partyMon.statExperience.attack = static_cast<std::uint16_t>(
-                    statExperience.at("attack").get<int>());
-                partyMon.statExperience.defense = static_cast<std::uint16_t>(
-                    statExperience.at("defense").get<int>());
-                partyMon.statExperience.speed = static_cast<std::uint16_t>(
-                    statExperience.at("speed").get<int>());
-                partyMon.statExperience.special = static_cast<std::uint16_t>(
-                    statExperience.at("special").get<int>());
-
-                for (const auto& move : mon.at("moves")) {
-                    partyMon.moves.push_back(PartyMoveState{
-                        static_cast<std::uint8_t>(move.at("move").at("id").get<int>()),
-                        move.at("move").at("name").get<std::string>(),
-                        static_cast<std::uint8_t>(move.at("pp").at("current").get<int>()),
-                        static_cast<std::uint8_t>(move.at("pp").at("ppUps").get<int>())
-                    });
-                }
-
-                state.party.pokemon.push_back(std::move(partyMon));
+                state.party.pokemon.push_back(ParsePartyPokemon(mon));
             }
+
+            state.storage.selectedBoxNumber =
+                decoded.at("currentBoxCache").at("selectedBoxNumber").get<int>();
+            state.storage.boxChangedFlag =
+                decoded.at("currentBoxCache").at("boxChangedFlag").get<bool>();
+            if (decoded.at("currentBoxCache").contains("cache") &&
+                !decoded.at("currentBoxCache").at("cache").is_null()) {
+                state.storage.hasCurrentBoxCache = true;
+                state.storage.currentBoxCache = ParseCurrentBoxCache(
+                    decoded.at("currentBoxCache").at("cache"),
+                    state.storage.selectedBoxNumber);
+            }
+            state.storage.inputSynchronizationStatus =
+                decoded.at("currentBoxCache").at("synchronizationStatus").get<std::string>();
+            state.storage.boxes.reserve(decoded.at("pcStorage").at("boxes").size());
+            for (const auto& box : decoded.at("pcStorage").at("boxes")) {
+                state.storage.boxes.push_back(ParseStorageBox(box));
+            }
+
             state.daycare.inUse = decoded.at("daycare").at("inUse").get<bool>();
-            state.hallOfFame.entryCount = decoded.at("hallOfFame").at("entryCount").get<int>();
+            if (state.daycare.inUse && !decoded.at("daycare").at("pokemon").is_null()) {
+                state.daycare.pokemon = ParseStoredPokemon(decoded.at("daycare").at("pokemon"));
+                state.daycare.pokemon->position = 1;
+            }
 
-            state.eventSubset.visitedTowns.reserve(decoded.at("visitedTowns").size());
-            for (const auto& entry : decoded.at("visitedTowns")) {
-                state.eventSubset.visitedTowns.push_back(entry.at("visited").get<bool>());
+            state.hallOfFame.entryCount = decoded.at("hallOfFame").at("entryCount").get<int>();
+            for (const auto& entry : decoded.at("hallOfFame").at("entries")) {
+                state.hallOfFame.entries.push_back(ParseHallOfFameEntry(entry));
             }
-            state.eventSubset.hiddenItems.reserve(decoded.at("hiddenItems").size());
+
+            for (const auto& flag : decoded.at("events").at("flags")) {
+                state.events.push_back(ParseNamedFlag(flag, "value"));
+            }
+            for (const auto& flag : decoded.at("trainerBattles").at("records")) {
+                state.trainerBattles.push_back(ParseNamedFlag(flag, "completed"));
+            }
+            for (const auto& flag : decoded.at("staticBattles").at("records")) {
+                state.staticBattles.push_back(ParseNamedFlag(flag, "completed"));
+            }
+            for (const auto& flag : decoded.at("storyProgress").at("storyFlags")) {
+                state.storyProgress.push_back(ParseNamedFlag(flag, "completed"));
+            }
+            for (const auto& script : decoded.at("scripts").at("scripts")) {
+                state.scripts.push_back(ParseScript(script));
+            }
+            for (const auto& entry : decoded.at("missableObjects")) {
+                state.missableObjects.push_back(ParseMissableObject(entry));
+            }
             for (const auto& entry : decoded.at("hiddenItems")) {
-                state.eventSubset.hiddenItems.push_back(entry.at("collected").get<bool>());
+                state.hiddenItems.push_back(ParseHiddenObject(entry, "collected"));
             }
-            state.eventSubset.hiddenCoins.reserve(decoded.at("hiddenCoins").size());
             for (const auto& entry : decoded.at("hiddenCoins")) {
-                state.eventSubset.hiddenCoins.push_back(entry.at("collected").get<bool>());
+                state.hiddenCoins.push_back(ParseHiddenObject(entry, "collected"));
+            }
+            for (const auto& entry : decoded.at("visitedTowns")) {
+                state.visitedTowns.push_back(ParseVisitedTown(entry));
             }
 
             result.ok = true;
@@ -334,6 +466,224 @@ public:
             result.errors.push_back(ex.what());
         }
         return result;
+    }
+
+private:
+    static std::uint8_t ParseHexByte(const std::string& value) {
+        if (value.size() < 3U || value[0] != '0' || (value[1] != 'x' && value[1] != 'X')) {
+            throw std::runtime_error("Expected 0x-prefixed hex byte, received: " + value);
+        }
+        return static_cast<std::uint8_t>(std::stoul(value.substr(2), nullptr, 16));
+    }
+
+    static PartyPokemonState ParsePartyPokemon(const nlohmann::json& mon) {
+        PartyPokemonState partyMon;
+        partyMon.position = mon.at("position").get<int>();
+        partyMon.speciesId =
+            static_cast<std::uint8_t>(mon.at("species").at("internalId").get<int>());
+        partyMon.speciesName = mon.at("species").at("name").get<std::string>();
+        partyMon.nationalDexNumber = static_cast<std::uint8_t>(
+            mon.at("species").at("nationalDexNumber").get<int>());
+        partyMon.nickname = mon.at("nickname").at("value").get<std::string>();
+        partyMon.originalTrainerName = mon.at("originalTrainer").at("name").get<std::string>();
+        partyMon.originalTrainerId = static_cast<std::uint16_t>(
+            mon.at("originalTrainer").at("idNo").get<int>());
+        partyMon.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
+        partyMon.experience = static_cast<std::uint32_t>(mon.at("experience").get<int>());
+        partyMon.statusRaw = ParseHexByte(mon.at("status").at("rawByte").get<std::string>());
+
+        const auto* speciesData = pokemon::FindSpeciesData(partyMon.speciesId);
+        if (speciesData == nullptr) {
+            throw std::runtime_error(
+                "decoded.party contains unsupported species id " +
+                std::to_string(partyMon.speciesId) + ".");
+        }
+        partyMon.type1 = speciesData->type1;
+        partyMon.type2 = speciesData->type2;
+        partyMon.catchRate = speciesData->catchRate;
+
+        const nlohmann::json& stats = mon.at("stats");
+        partyMon.currentHp = static_cast<std::uint16_t>(stats.at("hpCurrent").get<int>());
+        partyMon.maxHp = static_cast<std::uint16_t>(stats.at("hpMax").get<int>());
+        partyMon.attack = static_cast<std::uint16_t>(stats.at("attack").get<int>());
+        partyMon.defense = static_cast<std::uint16_t>(stats.at("defense").get<int>());
+        partyMon.speed = static_cast<std::uint16_t>(stats.at("speed").get<int>());
+        partyMon.special = static_cast<std::uint16_t>(stats.at("special").get<int>());
+
+        const nlohmann::json& dvs = mon.at("dvs");
+        partyMon.dvs.hp = static_cast<std::uint8_t>(dvs.at("hp").get<int>());
+        partyMon.dvs.attack = static_cast<std::uint8_t>(dvs.at("attack").get<int>());
+        partyMon.dvs.defense = static_cast<std::uint8_t>(dvs.at("defense").get<int>());
+        partyMon.dvs.speed = static_cast<std::uint8_t>(dvs.at("speed").get<int>());
+        partyMon.dvs.special = static_cast<std::uint8_t>(dvs.at("special").get<int>());
+
+        const nlohmann::json& statExperience = mon.at("statExperience");
+        partyMon.statExperience.hp =
+            static_cast<std::uint16_t>(statExperience.at("hp").get<int>());
+        partyMon.statExperience.attack =
+            static_cast<std::uint16_t>(statExperience.at("attack").get<int>());
+        partyMon.statExperience.defense =
+            static_cast<std::uint16_t>(statExperience.at("defense").get<int>());
+        partyMon.statExperience.speed =
+            static_cast<std::uint16_t>(statExperience.at("speed").get<int>());
+        partyMon.statExperience.special =
+            static_cast<std::uint16_t>(statExperience.at("special").get<int>());
+
+        for (const auto& move : mon.at("moves")) {
+            partyMon.moves.push_back(ParseMove(move));
+        }
+        return partyMon;
+    }
+
+    static StoredPokemonState ParseStoredPokemon(const nlohmann::json& mon) {
+        StoredPokemonState stored;
+        stored.position = mon.value("position", 1);
+        stored.speciesId =
+            static_cast<std::uint8_t>(mon.at("species").at("internalId").get<int>());
+        stored.speciesName = mon.at("species").at("name").get<std::string>();
+        stored.nationalDexNumber = static_cast<std::uint8_t>(
+            mon.at("species").at("nationalDexNumber").get<int>());
+        stored.nickname = mon.at("nickname").at("value").get<std::string>();
+        stored.originalTrainerName = mon.at("originalTrainer").at("name").get<std::string>();
+        stored.originalTrainerId = static_cast<std::uint16_t>(
+            mon.at("originalTrainer").at("idNo").get<int>());
+        stored.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
+        stored.experience = static_cast<std::uint32_t>(mon.at("experience").get<int>());
+        stored.statusRaw = ParseHexByte(mon.at("status").at("rawByte").get<std::string>());
+
+        if (const auto* speciesData = pokemon::FindSpeciesData(stored.speciesId);
+            speciesData != nullptr) {
+            stored.type1 = speciesData->type1;
+            stored.type2 = speciesData->type2;
+            stored.catchRate = speciesData->catchRate;
+        }
+
+        const auto& stats = mon.at("stats");
+        stored.currentHp = static_cast<std::uint16_t>(stats.at("hpCurrent").get<int>());
+
+        const auto& dvs = mon.at("dvs");
+        stored.dvs.hp = static_cast<std::uint8_t>(dvs.at("hp").get<int>());
+        stored.dvs.attack = static_cast<std::uint8_t>(dvs.at("attack").get<int>());
+        stored.dvs.defense = static_cast<std::uint8_t>(dvs.at("defense").get<int>());
+        stored.dvs.speed = static_cast<std::uint8_t>(dvs.at("speed").get<int>());
+        stored.dvs.special = static_cast<std::uint8_t>(dvs.at("special").get<int>());
+
+        const auto& statExperience = mon.at("statExperience");
+        stored.statExperience.hp =
+            static_cast<std::uint16_t>(statExperience.at("hp").get<int>());
+        stored.statExperience.attack =
+            static_cast<std::uint16_t>(statExperience.at("attack").get<int>());
+        stored.statExperience.defense =
+            static_cast<std::uint16_t>(statExperience.at("defense").get<int>());
+        stored.statExperience.speed =
+            static_cast<std::uint16_t>(statExperience.at("speed").get<int>());
+        stored.statExperience.special =
+            static_cast<std::uint16_t>(statExperience.at("special").get<int>());
+
+        for (const auto& move : mon.at("moves")) {
+            stored.moves.push_back(ParseMove(move));
+        }
+        return stored;
+    }
+
+    static PokemonMoveState ParseMove(const nlohmann::json& move) {
+        return PokemonMoveState{
+            static_cast<std::uint8_t>(move.at("move").at("id").get<int>()),
+            move.at("move").at("name").get<std::string>(),
+            static_cast<std::uint8_t>(move.at("pp").at("current").get<int>()),
+            static_cast<std::uint8_t>(move.at("pp").at("ppUps").get<int>())
+        };
+    }
+
+    static StorageBoxState ParseStorageBox(const nlohmann::json& box) {
+        StorageBoxState parsed;
+        parsed.boxNumber = box.at("boxNumber").get<int>();
+        parsed.count = box.at("count").get<int>();
+        for (const auto& mon : box.at("pokemon")) {
+            parsed.pokemon.push_back(ParseStoredPokemon(mon));
+        }
+        return parsed;
+    }
+
+    static StorageBoxState ParseCurrentBoxCache(const nlohmann::json& cache, int selectedBoxNumber) {
+        StorageBoxState parsed;
+        parsed.boxNumber = selectedBoxNumber;
+        if (cache.contains("boxNumber") && !cache.at("boxNumber").is_null()) {
+            parsed.boxNumber = cache.at("boxNumber").get<int>();
+        }
+        parsed.count = cache.at("count").get<int>();
+        for (const auto& mon : cache.at("pokemon")) {
+            parsed.pokemon.push_back(ParseStoredPokemon(mon));
+        }
+        return parsed;
+    }
+
+    static HallOfFameEntryState ParseHallOfFameEntry(const nlohmann::json& entry) {
+        HallOfFameEntryState parsed;
+        parsed.entryNumber = entry.at("entryNumber").get<int>();
+        for (const auto& mon : entry.at("pokemon")) {
+            HallOfFamePokemonState pokemonState;
+            pokemonState.partyOrder = mon.at("partyOrder").get<int>();
+            pokemonState.speciesId =
+                static_cast<std::uint8_t>(mon.at("species").at("internalId").get<int>());
+            pokemonState.speciesName = mon.at("species").at("name").get<std::string>();
+            pokemonState.nationalDexNumber = static_cast<std::uint8_t>(
+                mon.at("species").at("nationalDexNumber").get<int>());
+            pokemonState.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
+            pokemonState.nickname = mon.at("nickname").get<std::string>();
+            parsed.pokemon.push_back(std::move(pokemonState));
+        }
+        return parsed;
+    }
+
+    static NamedFlagState ParseNamedFlag(const nlohmann::json& flag, const char* boolField) {
+        NamedFlagState parsed;
+        parsed.flagIndex = flag.at("flagIndex").get<int>();
+        parsed.name = flag.at("name").get<std::string>();
+        parsed.description = flag.value("description", "");
+        parsed.set = flag.at(boolField).get<bool>();
+        parsed.category = flag.value("category", "");
+        parsed.location = flag.value("location", "");
+        parsed.trainerNumber = flag.value("trainerNumber", 0);
+        return parsed;
+    }
+
+    static ScriptState ParseScript(const nlohmann::json& script) {
+        ScriptState parsed;
+        parsed.index = script.at("index").get<int>();
+        parsed.relativeOffset = script.at("relativeOffset").get<int>();
+        parsed.size = script.at("size").get<int>();
+        parsed.value = script.at("rawValue").get<int>();
+        parsed.mapOrScriptName = script.value("mapOrScriptName", "");
+        return parsed;
+    }
+
+    static MissableObjectState ParseMissableObject(const nlohmann::json& entry) {
+        MissableObjectState parsed;
+        parsed.index = entry.at("index").get<int>();
+        parsed.name = entry.at("name").get<std::string>();
+        parsed.location = entry.value("location", "");
+        parsed.toggledOff = entry.at("toggledOff").get<bool>();
+        return parsed;
+    }
+
+    static HiddenObjectState ParseHiddenObject(const nlohmann::json& entry, const char* boolField) {
+        HiddenObjectState parsed;
+        parsed.index = entry.at("index").get<int>();
+        parsed.name = entry.at("name").get<std::string>();
+        parsed.location = entry.value("location", "");
+        parsed.x = entry.value("x", 0);
+        parsed.y = entry.value("y", 0);
+        parsed.collected = entry.at(boolField).get<bool>();
+        return parsed;
+    }
+
+    static VisitedTownState ParseVisitedTown(const nlohmann::json& entry) {
+        VisitedTownState parsed;
+        parsed.index = entry.at("index").get<int>();
+        parsed.name = entry.at("name").get<std::string>();
+        parsed.visited = entry.at("visited").get<bool>();
+        return parsed;
     }
 };
 

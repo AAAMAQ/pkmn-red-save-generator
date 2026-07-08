@@ -10,11 +10,14 @@
 
 #include "../encoding/Gen1Layout.hpp"
 #include "../model/RedSemanticState.hpp"
+#include "HallOfFameSerializer.hpp"
 #include "PartyValidator.hpp"
+#include "StorageValidator.hpp"
 
 namespace pkmn::savegen::generation {
 
 struct SupportedLocation {
+    const char* label = "Red's house second floor";
     std::uint8_t mapId = 38;
     std::uint8_t x = 3;
     std::uint8_t y = 6;
@@ -26,7 +29,7 @@ struct SupportedLocation {
 struct MinimalStateContract {
     model::RedSemanticState expectedSemantic;
     SupportedLocation supportedLocation;
-    std::string dummyBoxPolicy = "Policy A - preserve canonical unused state";
+    bool locationStrictBaseline = true;
     std::vector<std::string> warnings;
 };
 
@@ -35,45 +38,45 @@ public:
     static MinimalStateContract Build(const model::RedSemanticState& target) {
         MinimalStateContract contract;
         contract.expectedSemantic = target;
+        contract.supportedLocation = ResolveSupportedLocation(target);
+        contract.locationStrictBaseline = (contract.supportedLocation.mapId == 38);
 
         if (target.core.mapId != contract.supportedLocation.mapId ||
             target.core.x != contract.supportedLocation.x ||
-            target.core.y != contract.supportedLocation.y) {
+            target.core.y != contract.supportedLocation.y ||
+            target.core.previousMapId != contract.supportedLocation.previousMap ||
+            target.core.xBlockCoord != contract.supportedLocation.xBlock ||
+            target.core.yBlockCoord != contract.supportedLocation.yBlock) {
             std::ostringstream oss;
-            oss << "Milestone 4 currently supports only the proven baseline location map="
-                << static_cast<int>(contract.supportedLocation.mapId)
-                << " x=" << static_cast<int>(contract.supportedLocation.x)
-                << " y=" << static_cast<int>(contract.supportedLocation.y)
-                << "; received map=" << static_cast<int>(target.core.mapId)
+            oss << "The current implemented location validator supports only explicitly verified safe map states; received map="
+                << static_cast<int>(target.core.mapId)
                 << " x=" << static_cast<int>(target.core.x)
-                << " y=" << static_cast<int>(target.core.y) << ".";
+                << " y=" << static_cast<int>(target.core.y)
+                << " previousMap=" << static_cast<int>(target.core.previousMapId)
+                << " xBlock=" << static_cast<int>(target.core.xBlockCoord)
+                << " yBlock=" << static_cast<int>(target.core.yBlockCoord) << ".";
             throw std::runtime_error(oss.str());
         }
 
         PartyValidator::ValidateOrThrow(target.party);
-        if (target.daycare.inUse) {
-            throw std::runtime_error(
-                "Milestone 4 does not yet support an occupied daycare state.");
-        }
-        if (target.hallOfFame.entryCount != 0) {
-            throw std::runtime_error(
-                "Milestone 4 does not yet support non-empty Hall of Fame reconstruction.");
-        }
+        StorageValidator::ValidateOrThrow(target.storage);
+        StorageValidator::ValidateDaycareOrThrow(target.daycare);
+        HallOfFameSerializer::ValidateOrThrow(target.hallOfFame);
 
-        RequireBitfieldLength(
+        RequireLength(
             target.pokedex.owned, 151, "decoded.pokedex.species owned");
-        RequireBitfieldLength(
+        RequireLength(
             target.pokedex.seen, 151, "decoded.pokedex.species seen");
-        RequireBitfieldLength(
-            target.eventSubset.visitedTowns,
+        RequireLength(
+            target.visitedTowns,
             static_cast<std::size_t>(encoding::Gen1Layout::VisitedTownsUsedBits),
             "decoded.visitedTowns");
-        RequireBitfieldLength(
-            target.eventSubset.hiddenItems,
+        RequireLength(
+            target.hiddenItems,
             static_cast<std::size_t>(encoding::Gen1Layout::HiddenItemsUsedBits),
             "decoded.hiddenItems");
-        RequireBitfieldLength(
-            target.eventSubset.hiddenCoins,
+        RequireLength(
+            target.hiddenCoins,
             static_cast<std::size_t>(encoding::Gen1Layout::HiddenCoinsUsedBits),
             "decoded.hiddenCoins");
         ValidateInventoryList(
@@ -89,28 +92,55 @@ public:
         contract.expectedSemantic.pokedex.seenCount = CountTrue(contract.expectedSemantic.pokedex.seen);
 
         contract.warnings.push_back(
-            "Milestone 4 preserves the committed dummy's permanent box banks and invalid bank all-box checksums as canonical unused state.");
+            "Permanent PC storage is now generator-owned; all 12 boxes, the selected-box cache, per-box checksums, and bank all-box checksums must be regenerated from semantic input.");
         contract.warnings.push_back(
-            "Milestone 4 still supports only the proven baseline safe location from the canonical dummy template.");
+            "The current location validator fails closed to the emulator-validated Red's house baseline. Non-baseline locations are paused after the Milestone 5-6 load-time corruption incident.");
         contract.warnings.push_back(
-            "Milestone 4 now owns full party serialization in addition to trainer/core fields, badges, Pokedex, bag inventory, PC item inventory, and the conservative event subset.");
+            "The generator currently owns trainer/core fields, party, permanent storage, selected-box cache, badges, Pokedex, bag inventory, PC item inventory, Daycare, Hall of Fame, and the conservative named event/world subset.");
         return contract;
     }
 
 private:
-    static void RequireBitfieldLength(const std::vector<bool>& bits,
-                                      std::size_t expected,
-                                      const std::string& label) {
-        if (bits.size() != expected) {
+    template <typename T>
+    static void RequireLength(const std::vector<T>& values,
+                              std::size_t expected,
+                              const std::string& label) {
+        if (values.size() != expected) {
             std::ostringstream oss;
             oss << label << " must contain exactly " << expected
-                << " entries for Milestone 4; received " << bits.size() << ".";
+                << " entries for the current generator stage; received " << values.size() << ".";
             throw std::runtime_error(oss.str());
         }
     }
 
     static std::size_t CountTrue(const std::vector<bool>& bits) {
         return static_cast<std::size_t>(std::count(bits.begin(), bits.end(), true));
+    }
+
+    static SupportedLocation ResolveSupportedLocation(const model::RedSemanticState& target) {
+        static constexpr SupportedLocation kBaselineLocation{
+            "Red's house second floor", 38, 3, 6, 0, 1, 0
+        };
+
+        if (target.core.mapId == kBaselineLocation.mapId &&
+            target.core.x == kBaselineLocation.x &&
+            target.core.y == kBaselineLocation.y &&
+            target.core.previousMapId == kBaselineLocation.previousMap &&
+            target.core.xBlockCoord == kBaselineLocation.xBlock &&
+            target.core.yBlockCoord == kBaselineLocation.yBlock) {
+            return kBaselineLocation;
+        }
+
+        std::ostringstream oss;
+        oss << "No emulator-validated safe-location profile exists for map="
+            << static_cast<int>(target.core.mapId)
+            << " x=" << static_cast<int>(target.core.x)
+            << " y=" << static_cast<int>(target.core.y)
+            << " previousMap=" << static_cast<int>(target.core.previousMapId)
+            << " xBlock=" << static_cast<int>(target.core.xBlockCoord)
+            << " yBlock=" << static_cast<int>(target.core.yBlockCoord)
+            << ". Only the Red's house second-floor baseline is enabled until the full map-runtime cluster is serialized and emulator-proven.";
+        throw std::runtime_error(oss.str());
     }
 
     static void ValidateInventoryList(const std::vector<model::InventoryItem>& items,

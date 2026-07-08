@@ -1,9 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <stdexcept>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include "../input/PhysicalImageIsolationGuard.hpp"
 #include "../input/RedJsonReader.hpp"
@@ -16,9 +20,13 @@
 #include "../template/TemplateProfile.hpp"
 #include "../template/TemplateValidator.hpp"
 #include "CoreStateSerializer.hpp"
+#include "DaycareSerializer.hpp"
+#include "ExtendedWorldSerializer.hpp"
+#include "HallOfFameSerializer.hpp"
 #include "MinimalStateContract.hpp"
 #include "PartySerializer.hpp"
 #include "RedSaveInitializer.hpp"
+#include "StorageSerializer.hpp"
 
 namespace pkmn::savegen::generation {
 
@@ -65,10 +73,10 @@ public:
 
         WorkingSaveBuffer working =
             RedSaveInitializer::Initialize(loadedTemplate, profile, sanitized.physicalImageRemoved);
-        working.report.generatorVersion = "milestone4-dev";
+        working.report.generatorVersion = "milestone6-dev";
         working.report.targetJsonPath = request.inputJsonPath.lexically_normal().string();
         working.report.targetSourceSha256 = semantic.state.sourceSha256;
-        working.report.dummyBoxPolicy = contract.dummyBoxPolicy;
+        working.report.dummyBoxPolicy = "Retired in Milestone 5 - permanent storage is generator-owned";
         working.report.warnings.insert(
             working.report.warnings.end(), templateValidation.warnings.begin(), templateValidation.warnings.end());
         working.report.warnings.insert(
@@ -76,18 +84,24 @@ public:
 
         CoreStateSerializer::ApplyMinimalState(contract, working);
         PartySerializer::WriteParty(working, contract.expectedSemantic.party);
+        StorageSerializer::WriteStorage(working, contract.expectedSemantic.storage);
+        DaycareSerializer::WriteDaycare(working, contract.expectedSemantic.daycare);
+        HallOfFameSerializer::WriteHallOfFame(working, contract.expectedSemantic.hallOfFame);
+        ExtendedWorldSerializer::WritePersistentWorldState(working, contract.expectedSemantic);
         working.bytes[encoding::Gen1Layout::MainChecksumOff] =
             integrity::ChecksumAlgorithms::ComputeMainChecksum(working.bytes);
         working.report.ranges.push_back({
             encoding::Gen1Layout::MainChecksumOff,
             encoding::Gen1Layout::MainChecksumOff,
             "regenerated-checksum",
-            "Main checksum regenerated after semantic writes"
+            "Main checksum regenerated after semantic writes",
+            "MinimalSaveGenerator",
+            "integrity.mainChecksum"
         });
         working.report.fieldsWritten.push_back("integrity.mainChecksum");
 
         const auto integrity =
-            integrity::IntegrityValidator::ValidateMilestone2(working.bytes, loadedTemplate.bytes, false);
+            integrity::IntegrityValidator::ValidateGeneratedSave(working.bytes);
         if (!integrity.ok) {
             std::string message = "Generation integrity validation failed.";
             for (const std::string& error : integrity.errors) {
@@ -101,6 +115,8 @@ public:
         working.report.outputPath = request.outputSavePath.lexically_normal().string();
         working.report.outputSize = working.bytes.size();
         working.report.outputSha256 = template_support::Sha256::Hex(working.bytes);
+        AttachByteProvenanceAndValidateRanges(
+            working.report, loadedTemplate.bytes, working.bytes);
         WriteReport(request.outputReportPath, working.report);
 
         GenerateResult result;
@@ -166,6 +182,114 @@ private:
         if (!output) {
             throw std::runtime_error("Failed to write generation report JSON.");
         }
+    }
+
+    static void AttachByteProvenanceAndValidateRanges(
+        reporting::GenerationReport& report,
+        const std::vector<std::uint8_t>& templateBytes,
+        const std::vector<std::uint8_t>& outputBytes) {
+        constexpr std::size_t kExactByteLimit = 32;
+        report.overlappingWrites = FindUndeclaredOverlaps(report.ranges);
+        if (!report.overlappingWrites.empty()) {
+            std::ostringstream oss;
+            oss << "Generation report contains undeclared overlapping write ranges:";
+            for (const auto& overlap : report.overlappingWrites) {
+                oss << " [0x" << std::hex << overlap.start
+                    << "-0x" << overlap.endInclusive << std::dec
+                    << " between '" << overlap.firstReason
+                    << "' and '" << overlap.secondReason << "']";
+            }
+            throw std::runtime_error(oss.str());
+        }
+
+        for (auto& range : report.ranges) {
+            if (range.classification == "template-inherited") {
+                continue;
+            }
+            if (range.start > range.endInclusive ||
+                range.endInclusive >= templateBytes.size() ||
+                range.endInclusive >= outputBytes.size()) {
+                throw std::runtime_error(
+                    "Generation report contains an out-of-bounds range for " + range.reason + ".");
+            }
+
+            const std::size_t length = range.endInclusive - range.start + 1U;
+            if (length <= kExactByteLimit) {
+                range.previousBytesHex = HexBytes(templateBytes, range.start, length);
+                range.newBytesHex = HexBytes(outputBytes, range.start, length);
+            } else {
+                range.byteSampleTruncated = true;
+                range.previousSha256 = RangeSha256(templateBytes, range.start, length);
+                range.newSha256 = RangeSha256(outputBytes, range.start, length);
+                range.previousBytesHex = HexBytes(templateBytes, range.start, kExactByteLimit);
+                range.newBytesHex = HexBytes(outputBytes, range.start, kExactByteLimit);
+            }
+        }
+    }
+
+    static std::vector<reporting::RangeOverlapEntry> FindUndeclaredOverlaps(
+        const std::vector<reporting::RangeLedgerEntry>& ranges) {
+        struct IndexedRange {
+            std::size_t index = 0;
+            const reporting::RangeLedgerEntry* range = nullptr;
+        };
+
+        std::vector<IndexedRange> written;
+        for (std::size_t i = 0; i < ranges.size(); ++i) {
+            if (ranges[i].classification == "template-inherited") {
+                continue;
+            }
+            written.push_back({i, &ranges[i]});
+        }
+        std::sort(written.begin(), written.end(), [](const auto& lhs, const auto& rhs) {
+            if (lhs.range->start != rhs.range->start) {
+                return lhs.range->start < rhs.range->start;
+            }
+            return lhs.range->endInclusive < rhs.range->endInclusive;
+        });
+
+        std::vector<reporting::RangeOverlapEntry> overlaps;
+        for (std::size_t i = 0; i < written.size(); ++i) {
+            for (std::size_t j = i + 1; j < written.size(); ++j) {
+                if (written[j].range->start > written[i].range->endInclusive) {
+                    break;
+                }
+                const std::size_t start =
+                    std::max(written[i].range->start, written[j].range->start);
+                const std::size_t end =
+                    std::min(written[i].range->endInclusive, written[j].range->endInclusive);
+                if (start <= end) {
+                    overlaps.push_back({
+                        written[i].index,
+                        written[j].index,
+                        start,
+                        end,
+                        written[i].range->reason,
+                        written[j].range->reason
+                    });
+                }
+            }
+        }
+        return overlaps;
+    }
+
+    static std::string HexBytes(const std::vector<std::uint8_t>& bytes,
+                                std::size_t offset,
+                                std::size_t length) {
+        std::ostringstream oss;
+        oss << std::hex << std::uppercase << std::setfill('0');
+        for (std::size_t i = 0; i < length; ++i) {
+            oss << std::setw(2) << static_cast<int>(bytes[offset + i]);
+        }
+        return oss.str();
+    }
+
+    static std::string RangeSha256(const std::vector<std::uint8_t>& bytes,
+                                   std::size_t offset,
+                                   std::size_t length) {
+        return template_support::Sha256::Hex(
+            std::vector<std::uint8_t>(bytes.begin() + static_cast<std::ptrdiff_t>(offset),
+                                      bytes.begin() + static_cast<std::ptrdiff_t>(offset + length)));
     }
 };
 

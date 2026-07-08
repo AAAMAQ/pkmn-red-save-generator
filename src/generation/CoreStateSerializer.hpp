@@ -119,9 +119,10 @@ public:
                       encoding::Gen1Layout::PCItemBoxMaxPairs,
                       contract.expectedSemantic.inventory.pcItems,
                       "inventory.pcItems");
-        WriteEventSubset(working, contract.expectedSemantic.eventSubset);
-        ClearDaycare(working);
-        ClearHallOfFame(working);
+        WriteEventSubset(working,
+                         contract.expectedSemantic.visitedTowns,
+                         contract.expectedSemantic.hiddenItems,
+                         contract.expectedSemantic.hiddenCoins);
     }
 
 private:
@@ -211,47 +212,41 @@ private:
                   fieldName);
     }
 
-    static void WriteEventSubset(WorkingSaveBuffer& working,
-                                 const model::EventSubsetState& eventSubset) {
+    static void WriteEventSubset(
+        WorkingSaveBuffer& working,
+        const std::vector<model::VisitedTownState>& visitedTowns,
+        const std::vector<model::HiddenObjectState>& hiddenItems,
+        const std::vector<model::HiddenObjectState>& hiddenCoins) {
+        std::vector<bool> visitedTownBits;
+        visitedTownBits.reserve(visitedTowns.size());
+        for (const auto& entry : visitedTowns) {
+            visitedTownBits.push_back(entry.visited);
+        }
+        std::vector<bool> hiddenItemBits;
+        hiddenItemBits.reserve(hiddenItems.size());
+        for (const auto& entry : hiddenItems) {
+            hiddenItemBits.push_back(entry.collected);
+        }
+        std::vector<bool> hiddenCoinBits;
+        hiddenCoinBits.reserve(hiddenCoins.size());
+        for (const auto& entry : hiddenCoins) {
+            hiddenCoinBits.push_back(entry.collected);
+        }
         WriteBooleanBitfieldRange(working,
                                   encoding::Gen1Layout::VisitedTownsOff,
                                   encoding::Gen1Layout::VisitedTownsLen,
-                                  eventSubset.visitedTowns,
-                                  "eventSubset.visitedTowns");
+                                  visitedTownBits,
+                                  "visitedTowns");
         WriteBooleanBitfieldRange(working,
                                   encoding::Gen1Layout::HiddenItemsOff,
                                   encoding::Gen1Layout::HiddenItemsLen,
-                                  eventSubset.hiddenItems,
-                                  "eventSubset.hiddenItems");
+                                  hiddenItemBits,
+                                  "hiddenItems");
         WriteBooleanBitfieldRange(working,
                                   encoding::Gen1Layout::HiddenCoinsOff,
                                   encoding::Gen1Layout::HiddenCoinsLen,
-                                  eventSubset.hiddenCoins,
-                                  "eventSubset.hiddenCoins");
-    }
-
-    static void ClearDaycare(WorkingSaveBuffer& working) {
-        ZeroRange(working.bytes, encoding::Gen1Layout::DaycareInUseOff, encoding::Gen1Layout::DaycareLen);
-        MarkRange(working.report,
-                  encoding::Gen1Layout::DaycareInUseOff,
-                  encoding::Gen1Layout::DaycareInUseOff + encoding::Gen1Layout::DaycareLen - 1,
-                  "intentionally-cleared",
-                  "empty daycare canonical default");
-    }
-
-    static void ClearHallOfFame(WorkingSaveBuffer& working) {
-        ZeroRange(working.bytes, encoding::Gen1Layout::HallOfFameOff, encoding::Gen1Layout::HallOfFameLen);
-        encoding::PrimitiveWriter::WriteU8(working.bytes, encoding::Gen1Layout::HallOfFameRecordCountOff, 0);
-        MarkRange(working.report,
-                  encoding::Gen1Layout::HallOfFameOff,
-                  encoding::Gen1Layout::HallOfFameOff + encoding::Gen1Layout::HallOfFameLen - 1,
-                  "intentionally-cleared",
-                  "empty Hall of Fame canonical default");
-        MarkRange(working.report,
-                  encoding::Gen1Layout::HallOfFameRecordCountOff,
-                  encoding::Gen1Layout::HallOfFameRecordCountOff,
-                  "intentionally-cleared",
-                  "Hall of Fame entry count canonical default");
+                                  hiddenCoinBits,
+                                  "hiddenCoins");
     }
 
     static void WriteBits(std::vector<std::uint8_t>& bytes,
@@ -285,7 +280,14 @@ private:
                           std::size_t endInclusive,
                           const std::string& classification,
                           const std::string& reason) {
-        report.ranges.push_back({start, endInclusive, classification, reason});
+        report.ranges.push_back({
+            start,
+            endInclusive,
+            classification,
+            reason,
+            "CoreStateSerializer",
+            reason
+        });
         report.fieldsWritten.push_back(reason);
     }
 };

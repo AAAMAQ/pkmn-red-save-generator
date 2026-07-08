@@ -2,7 +2,7 @@
 
 ## Repository State
 
-- The project is implemented through Milestone 4 active-party generation.
+- The project is implemented through completed Milestone 5 storage generation and a paused experimental Milestone 6 extended-state surface.
 - The CLI now supports save generation and owned-field semantic comparison.
 - Full-save reconstruction is still incomplete.
 
@@ -18,18 +18,24 @@
 - Current support planning targets `.red.json` schema `0.1.0` only.
 - `runtimeState` remains only partially suitable for write-back.
 - Unknown Bank 1 and Bank 2/3 tail bytes still need stronger policy evidence.
-- Generation still accepts only the proven Red's house second-floor baseline location.
-- Milestone 4 now supports non-empty party input, but still rejects occupied daycare and non-empty Hall of Fame input states.
-- Non-empty permanent PC storage remains deferred to Milestone 5.
+- Generation currently accepts only the emulator-validated Red's house second-floor baseline location.
+- Viridian City Pokemon Center generation is disabled after the Milestone 5-6 load-time corruption incident.
+- Broader safe-map support remains incomplete.
+- Boxed and daycare stored `level` fields still rely on canonical derivation from experience because the boxed-level oracle is not yet trustworthy for every source fixture record.
 
 ## Validation Limitations
 
 - Save Genie reparses have been completed for Milestone 2 and Milestone 3 owned-field outputs.
 - Save Genie reparses and emulator save-again validation have now also been completed for a Milestone 4 projected-party output.
+- Save Genie reparses and generator-side semantic comparison passed for the full private Milestone 5 and 6 fixture, but emulator load immediately corrupted after Continue.
 - Emulator load validation has been completed for a Milestone 2 generated save.
 - Milestone 3 post-save `.sav` reparse after an emulator save-again cycle has now been completed successfully for the approved local validation path.
-- Milestone 4 proof is strongest for active-party data in the main save area. Permanent PC storage still remains under Policy A and has not yet been semantically regenerated.
-- Milestone 3 contamination proof is strongest for owned fields and still narrower for preserved storage banks under Policy A because storage interaction itself remains deferred.
+- Permanent PC storage is no longer preserved under Policy A in generated outputs; it is generator-owned and checksum-regenerated.
+- Milestone 5 PC-storage interaction, box switching, game-triggered save, normal save, post-save reparse, cache behavior, and storage comparison have passed.
+- Milestone 6 remains incomplete pending Daycare, Hall of Fame, broader event/world-state generation, safe-location support, and emulator save-again validation.
+- The first PC-storage viewing result is provisional because the tester had to progress gameplay before reaching Bill's PC.
+- Post-gameplay current-box-cache state may differ from permanent selected-box state until the game writes the active box back during a box switch or save flow.
+- The first controlled-interaction post-save artifact set contained one invalid copied save and one valid candidate proving deposit/cache/write-back behavior; a later final artifact completed withdrawal/Box 12 validation.
 - Direct in-game Pokedex UI verification has not yet been performed; current Pokedex proof comes from Save Genie reparse and semantic comparison.
 
 ## Licensing Limitations
@@ -41,5 +47,5 @@
 
 - Revision identity for the supported Pokemon Red target profile is still conservative rather than proven.
 - Safe handling for contradictory event combinations remains to be formalized during implementation.
-- Unsafe map/location combinations still need conservative acceptance rules.
-- Policy A is now justified for the validated load and save-again flows through Milestone 4 that do not touch PC storage, but it remains provisional for future scenarios that interact with permanent boxes or rely on their semantic meaning.
+- Unsafe map/location combinations now fail closed; broader map support requires full map-runtime serialization plus emulator evidence.
+- The original committed dummy still has suspicious permanent-box data; generated outputs now avoid inheriting that storage payload, but the template's runtime-heavy and unknown-tail ranges still require conservative policy.

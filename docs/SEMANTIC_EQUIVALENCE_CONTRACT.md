@@ -18,7 +18,7 @@ Where `~=` means equivalence under the categories below.
 
 These must match exactly after reparsing when supported.
 
-Currently owned through Milestone 4:
+Currently owned through the implemented Milestone 5 and current Milestone 6 code surface, with Milestone 5 blocked and Milestone 6 paused pending emulator safety proof:
 
 - trainer name
 - rival name
@@ -29,7 +29,7 @@ Currently owned through Milestone 4:
 - money
 - coins
 - badges
-- safe baseline map/location coordinates
+- Red's-house baseline map/location coordinates
 - bag inventory
 - PC item inventory
 - Pokedex seen/owned state
@@ -52,15 +52,24 @@ Currently owned through Milestone 4:
 - party Stat Experience
 - party stored level
 - party stored live stats
-
-Deferred beyond Milestone 4:
-
-- permanent PC box contents
-- current selected box meaning
-- current-box cache decoded contents
+- all 12 permanent PC boxes
+- selected box number and changed flag
+- current-box cache content as a synchronized duplicate of the selected permanent box
 - daycare occupancy and stored Pokemon
-- Hall of Fame records
-- supported persistent trainer-battle, story, and broader world-state values
+- Hall of Fame entry count and records
+- named event flags
+- trainer-battle flags
+- static-battle flags
+- story-progress flags
+- persistent script bytes exposed by Save Genie
+- missable objects
+
+Still deferred or temporarily disabled:
+
+- broader safe-location coverage beyond the Red's-house baseline
+- Viridian City Pokemon Center until full map-runtime serialization is implemented and emulator-proven
+- unsupported runtime-heavy world bytes outside the documented subset
+- fields not yet surfaced by a stable named semantic rule
 
 ### Required normalized match
 
@@ -78,6 +87,8 @@ These may be recomputed as long as the decoded meaning remains correct:
 - Pokedex counts derived from bitfields
 - party type bytes and catch-rate byte derived from species identity
 - current-box cache synchronized from storage semantics
+- per-box checksums
+- bank 2 and bank 3 all-box checksums
 - regenerated checksum bytes
 
 ### Canonicalized difference permitted
@@ -90,7 +101,9 @@ These may differ from the target source binary and still pass:
 - padding values
 - canonical default bytes
 - stale raw cache differences eliminated by synchronization
+- boxed or daycare stored `level` when the source fixture carries an implausible boxed-level decode and `experience` remains the stronger semantic authority
 - dummy-template bytes in explicitly documented inherited ranges
+- Red's-house location projection for diagnostic storage saves derived from non-baseline private fixtures
 
 ### Unsupported Or Deferred
 
@@ -112,7 +125,7 @@ The preferred comparison flow is:
 
 ## Acceptance Standard
 
-A generator milestone is not complete merely because the save loads.
+A generator milestone is not complete merely because parser-level semantic comparison passes.
 
 Release-grade acceptance requires:
 
@@ -120,6 +133,9 @@ Release-grade acceptance requires:
 - checksum validity
 - Save Genie reparse success
 - semantic equivalence for covered fields
+- emulator base-load success with no immediate corruption after Continue
 - emulator load success
 - in-game save-again success
 - second reparse preserving semantic equivalence
+
+For Milestone 5 and Milestone 6, Save Genie reparse plus semantic comparison is explicitly insufficient without emulator base-load, feature interaction, save-again, and post-save reparse evidence.

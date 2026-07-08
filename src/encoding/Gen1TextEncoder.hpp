@@ -26,6 +26,7 @@ public:
         if (byte == 0xE6) return '?';
         if (byte == 0xE7) return '!';
         if (byte == 0xE8) return '.';
+        if (byte == 0xF4) return ',';
         return '?';
     }
 
@@ -38,6 +39,7 @@ public:
         if (c == '?') return 0xE6;
         if (c == '!') return 0xE7;
         if (c == '.') return 0xE8;
+        if (c == ',') return 0xF4;
         throw std::invalid_argument("character is not encodable in the Milestone 1 Gen I charset subset");
     }
 

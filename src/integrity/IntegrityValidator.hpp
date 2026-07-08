@@ -1,9 +1,11 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <vector>
 
 #include "../encoding/Gen1Layout.hpp"
+#include "../encoding/PrimitiveWriter.hpp"
 #include "ChecksumAlgorithms.hpp"
 
 namespace pkmn::savegen::integrity {
@@ -13,9 +15,8 @@ struct IntegrityValidationResult {
     bool mainChecksumValid = false;
     bool bank2ChecksumValid = false;
     bool bank3ChecksumValid = false;
-    bool bank2MatchesPolicy = false;
-    bool bank3MatchesPolicy = false;
-    bool bankStorageUnchanged = false;
+    std::array<bool, 12> boxChecksumsValid{};
+    bool currentBoxCacheSynchronized = false;
     bool ok = false;
     std::vector<std::string> warnings;
     std::vector<std::string> errors;
@@ -23,21 +24,19 @@ struct IntegrityValidationResult {
 
 class IntegrityValidator {
 public:
-    static IntegrityValidationResult ValidateMilestone2(
-        const std::vector<std::uint8_t>& outputBytes,
-        const std::vector<std::uint8_t>& templateBytes,
-        bool expectBankAllValid) {
+    static IntegrityValidationResult ValidateGeneratedSave(
+        const std::vector<std::uint8_t>& outputBytes) {
         IntegrityValidationResult result;
         result.sizeOk = outputBytes.size() == encoding::Gen1Layout::ExpectedSaveSize;
         result.mainChecksumValid = ChecksumAlgorithms::ValidateMainChecksum(outputBytes);
         result.bank2ChecksumValid = ChecksumAlgorithms::ValidateBank2AllChecksum(outputBytes);
         result.bank3ChecksumValid = ChecksumAlgorithms::ValidateBank3AllChecksum(outputBytes);
-        result.bank2MatchesPolicy = result.bank2ChecksumValid == expectBankAllValid;
-        result.bank3MatchesPolicy = result.bank3ChecksumValid == expectBankAllValid;
-        constexpr std::size_t kBankStart = encoding::Gen1Layout::Bank2PayloadStart;
-        constexpr std::size_t kBankEndInclusive = encoding::Gen1Layout::Bank3AllChecksumOff + 6;
-        result.bankStorageUnchanged = CompareRanges(
-            outputBytes, templateBytes, kBankStart, (kBankEndInclusive - kBankStart + 1));
+
+        for (int boxIndex = 1; boxIndex <= 12; ++boxIndex) {
+            result.boxChecksumsValid[static_cast<std::size_t>(boxIndex - 1)] =
+                ChecksumAlgorithms::ValidateBoxChecksum(outputBytes, boxIndex);
+        }
+        result.currentBoxCacheSynchronized = SelectedPermanentBoxMatchesCache(outputBytes);
 
         if (!result.sizeOk) {
             result.errors.push_back("Output save size is not 0x8000.");
@@ -45,29 +44,44 @@ public:
         if (!result.mainChecksumValid) {
             result.errors.push_back("Main checksum is invalid.");
         }
-        if (!result.bank2MatchesPolicy) {
-            result.errors.push_back("Bank 2 all-box checksum does not match the active Policy A expectation.");
+        if (!result.bank2ChecksumValid) {
+            result.errors.push_back("Bank 2 all-box checksum is invalid.");
         }
-        if (!result.bank3MatchesPolicy) {
-            result.errors.push_back("Bank 3 all-box checksum does not match the active Policy A expectation.");
+        if (!result.bank3ChecksumValid) {
+            result.errors.push_back("Bank 3 all-box checksum is invalid.");
         }
-        if (!result.bankStorageUnchanged) {
-            result.errors.push_back("Policy A requires the bank 2/3 permanent box storage region to remain byte-identical to the committed dummy.");
+        for (int boxIndex = 1; boxIndex <= 12; ++boxIndex) {
+            if (!result.boxChecksumsValid[static_cast<std::size_t>(boxIndex - 1)]) {
+                result.errors.push_back(
+                    "Per-box checksum is invalid for box " + std::to_string(boxIndex) + ".");
+            }
+        }
+        if (!result.currentBoxCacheSynchronized) {
+            result.errors.push_back(
+                "Current-box cache does not match the selected permanent box.");
         }
         result.ok = result.errors.empty();
         return result;
     }
 
 private:
-    static bool CompareRanges(const std::vector<std::uint8_t>& left,
-                              const std::vector<std::uint8_t>& right,
-                              std::size_t start,
-                              std::size_t len) {
-        if (left.size() < start + len || right.size() < start + len) {
+    static bool SelectedPermanentBoxMatchesCache(
+        const std::vector<std::uint8_t>& bytes) {
+        const std::uint8_t raw = encoding::PrimitiveWriter::ReadU8(
+            bytes, encoding::Gen1Layout::CurrentBoxByteOff);
+        const int selected = static_cast<int>(raw & 0x7FU) + 1;
+        if (selected < 1 || selected > 12) {
             return false;
         }
-        for (std::size_t i = 0; i < len; ++i) {
-            if (left[start + i] != right[start + i]) {
+        const std::size_t permanentBase =
+            encoding::Gen1Layout::PermanentBoxOffsets[static_cast<std::size_t>(selected - 1)];
+        encoding::PrimitiveWriter::EnsureRange(
+            bytes, permanentBase, encoding::Gen1Layout::BoxBlockSize);
+        encoding::PrimitiveWriter::EnsureRange(
+            bytes, encoding::Gen1Layout::CurrentBoxCacheOff, encoding::Gen1Layout::BoxBlockSize);
+        for (std::size_t i = 0; i < encoding::Gen1Layout::BoxBlockSize; ++i) {
+            if (bytes[permanentBase + i] !=
+                bytes[encoding::Gen1Layout::CurrentBoxCacheOff + i]) {
                 return false;
             }
         }

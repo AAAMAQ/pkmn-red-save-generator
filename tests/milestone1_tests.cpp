@@ -1,4 +1,5 @@
 #include <array>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -21,9 +22,12 @@
 #include "../src/generation/PartyValidator.hpp"
 #include "../src/generation/PokemonStatCalculator.hpp"
 #include "../src/generation/RedSaveInitializer.hpp"
+#include "../src/generation/StorageSerializer.hpp"
+#include "../src/generation/StorageValidator.hpp"
 #include "../src/input/PhysicalImageIsolationGuard.hpp"
 #include "../src/input/RedJsonReader.hpp"
 #include "../src/input/RedJsonValidator.hpp"
+#include "../src/integrity/ChecksumAlgorithms.hpp"
 #include "../src/integrity/IntegrityValidator.hpp"
 #include "../src/model/RedSemanticState.hpp"
 #include "../src/pokemon/Gen1PokemonData.hpp"
@@ -68,6 +72,29 @@ void WriteJson(const std::filesystem::path& path, const nlohmann::json& json) {
     std::ofstream out(path);
     REQUIRE(out.good());
     out << json.dump(2) << "\n";
+}
+
+nlohmann::json MakeStorageReadyProjection(nlohmann::json json) {
+    auto& decoded = json["decoded"];
+    for (auto& box : decoded["pcStorage"]["boxes"]) {
+        box["count"] = 0;
+        box["averageLevel"] = 0.0;
+        box["pokemon"] = nlohmann::json::array();
+    }
+    decoded["currentBoxCache"]["rawCurrentBoxByte"] = "0x00";
+    decoded["currentBoxCache"]["selectedBoxNumber"] = 1;
+    decoded["currentBoxCache"]["boxChangedFlag"] = false;
+    decoded["currentBoxCache"]["correspondingPermanentBox"] = 1;
+    decoded["currentBoxCache"]["synchronizationStatus"] = "matching";
+    decoded["currentBoxCache"]["byteDifferencesAgainstPermanentBox"] = 0;
+    decoded["currentBoxCache"]["cache"]["count"] = 0;
+    decoded["currentBoxCache"]["cache"]["averageLevel"] = 0.0;
+    decoded["currentBoxCache"]["cache"]["pokemon"] = nlohmann::json::array();
+    decoded["daycare"]["inUse"] = false;
+    decoded["daycare"]["pokemon"] = nullptr;
+    decoded["hallOfFame"]["entryCount"] = 0;
+    decoded["hallOfFame"]["entries"] = nlohmann::json::array();
+    return json;
 }
 
 std::vector<bool> ReadBits(const std::vector<std::uint8_t>& buffer,
@@ -237,6 +264,95 @@ nlohmann::json PartyPokemonToJson(const pkmn::savegen::model::PartyPokemonState&
     };
 }
 
+pkmn::savegen::model::StoredPokemonState ToStoredPokemon(
+    const pkmn::savegen::model::PartyPokemonState& mon) {
+    pkmn::savegen::model::StoredPokemonState stored;
+    stored.position = mon.position;
+    stored.speciesId = mon.speciesId;
+    stored.speciesName = mon.speciesName;
+    stored.nationalDexNumber = mon.nationalDexNumber;
+    stored.nickname = mon.nickname;
+    stored.originalTrainerName = mon.originalTrainerName;
+    stored.originalTrainerId = mon.originalTrainerId;
+    stored.level = mon.level;
+    stored.experience = mon.experience;
+    stored.statusRaw = mon.statusRaw;
+    stored.type1 = mon.type1;
+    stored.type2 = mon.type2;
+    stored.catchRate = mon.catchRate;
+    stored.currentHp = mon.currentHp;
+    stored.moves = mon.moves;
+    stored.statExperience = mon.statExperience;
+    stored.dvs = mon.dvs;
+    return stored;
+}
+
+nlohmann::json StoredPokemonToJson(const pkmn::savegen::model::StoredPokemonState& mon) {
+    std::ostringstream statusHex;
+    statusHex << "0x" << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+              << static_cast<int>(mon.statusRaw);
+    nlohmann::json moves = nlohmann::json::array();
+    for (std::size_t i = 0; i < mon.moves.size(); ++i) {
+        moves.push_back({
+            {"slot", static_cast<int>(i + 1U)},
+            {"move", {{"name", mon.moves[i].moveName.empty() ? "MOVE" : mon.moves[i].moveName},
+                       {"id", mon.moves[i].moveId},
+                       {"rawIdHex", "0x00"}}},
+            {"pp", {{"current", mon.moves[i].ppCurrent},
+                    {"maximum", mon.moves[i].ppCurrent},
+                    {"ppUps", mon.moves[i].ppUps},
+                    {"rawByte", "0x00"}}}
+        });
+    }
+
+    return {
+        {"position", mon.position},
+        {"species", {{"internalId", mon.speciesId},
+                      {"internalIdHex", "0x00"},
+                      {"name", mon.speciesName.empty() ? "SPECIES" : mon.speciesName},
+                      {"nationalDexNumber", mon.nationalDexNumber},
+                      {"sourceOffset", "0x0000"}}},
+        {"nickname", {{"value", mon.nickname},
+                       {"rawHex", ""},
+                       {"offset", "0x0000"},
+                       {"length", 11},
+                       {"encoding", "gen1_text"},
+                       {"confidence", "verified"}}},
+        {"originalTrainer", {{"name", mon.originalTrainerName},
+                              {"idNo", mon.originalTrainerId},
+                              {"nameRawHex", ""},
+                              {"nameOffset", "0x0000"}}},
+        {"level", mon.level},
+        {"experience", mon.experience},
+        {"types", {{"status", "not_decoded"}, {"notes", "derived by generator from species data"}}},
+        {"status", {{"rawByte", statusHex.str()}, {"name", "boxed"}, {"confidence", "boxed_struct"}}},
+        {"stats", {{"hpCurrent", mon.currentHp},
+                    {"hpMax", 0},
+                    {"attack", 0},
+                    {"defense", 0},
+                    {"speed", 0},
+                    {"special", 0},
+                    {"interpretation", "boxed_struct"}}},
+        {"moves", moves},
+        {"dvs", {{"hp", mon.dvs.hp},
+                  {"attack", mon.dvs.attack},
+                  {"defense", mon.dvs.defense},
+                  {"speed", mon.dvs.speed},
+                  {"special", mon.dvs.special},
+                  {"packing", "atk/def and speed/special nibbles; HP derived from low bits"}}},
+        {"statExperience", {{"hp", mon.statExperience.hp},
+                             {"attack", mon.statExperience.attack},
+                             {"defense", mon.statExperience.defense},
+                             {"speed", mon.statExperience.speed},
+                             {"special", mon.statExperience.special}}},
+        {"conversion", {{"classification", "direct_transfer"}}},
+        {"sourceRange", {{"structOffset", "0x0000"},
+                          {"structLength", 33},
+                          {"rawStructureHex", ""},
+                          {"reconstructionPolicy", "semantic_test_fixture"}}}
+    };
+}
+
 }  // namespace
 
 TEST_CASE("Primitive writers encode and validate core formats") {
@@ -292,7 +408,7 @@ TEST_CASE("Dummy red json validates and builds a semantic model") {
     CHECK(build.state.party.count == 0);
     CHECK_FALSE(build.state.daycare.inUse);
     CHECK(build.state.hallOfFame.entryCount == 0);
-    CHECK(build.state.eventSubset.visitedTowns.size() == 11);
+    CHECK(build.state.visitedTowns.size() == 11);
     CHECK(build.state.physicalImageIgnored);
 }
 
@@ -500,6 +616,127 @@ TEST_CASE("Party serializer writes species list, stats, moves, and names") {
           pkmn::savegen::encoding::Gen1Layout::PartyBase);
 }
 
+TEST_CASE("Storage validator rejects malformed box state") {
+    pkmn::savegen::model::StorageState storage;
+    storage.selectedBoxNumber = 1;
+    for (int i = 1; i <= 12; ++i) {
+        storage.boxes.push_back({i, 0, {}});
+    }
+    storage.hasCurrentBoxCache = true;
+    storage.currentBoxCache = {1, 0, {}};
+    CHECK_NOTHROW(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+
+    SUBCASE("box count mismatch") {
+        storage.boxes[0].count = 1;
+        CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    }
+
+    SUBCASE("selected box out of range") {
+        storage.selectedBoxNumber = 13;
+        CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    }
+
+    SUBCASE("invalid boxed Pokemon species") {
+        auto mon = ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"));
+        mon.speciesId = 0;
+        storage.boxes[0].count = 1;
+        storage.boxes[0].pokemon = {mon};
+        CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    }
+
+    SUBCASE("current box cache mismatch") {
+        storage.currentBoxCache.count = 1;
+        storage.currentBoxCache.pokemon = {ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"))};
+        CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    }
+}
+
+TEST_CASE("Storage serializer writes permanent boxes current-box cache and checksums") {
+    const auto profile =
+        pkmn::savegen::template_profile::TemplateProfileLoader::LoadFromFile(ProfilePath());
+    const auto loaded =
+        pkmn::savegen::template_loader::CanonicalTemplateLoader::Load(DummySavPath());
+    auto working =
+        pkmn::savegen::generation::RedSaveInitializer::Initialize(loaded, profile, true);
+
+    pkmn::savegen::model::StorageState storage;
+    storage.selectedBoxNumber = 2;
+    storage.boxChangedFlag = true;
+    for (int i = 1; i <= 12; ++i) {
+        storage.boxes.push_back({i, 0, {}});
+    }
+    auto first = ToStoredPokemon(MakeDefaultPidgey(1, "BIRDY"));
+    auto second = ToStoredPokemon(MakeDefaultPidgey(2, "SKY"));
+    storage.boxes[1].count = 2;
+    storage.boxes[1].pokemon = {first, second};
+    storage.hasCurrentBoxCache = true;
+    storage.currentBoxCache = storage.boxes[1];
+
+    CHECK_NOTHROW(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    pkmn::savegen::generation::StorageSerializer::WriteStorage(working, storage);
+    working.bytes[pkmn::savegen::encoding::Gen1Layout::MainChecksumOff] =
+        pkmn::savegen::integrity::ChecksumAlgorithms::ComputeMainChecksum(working.bytes);
+
+    CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::CurrentBoxByteOff] == 0x81);
+    CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1]] == 2);
+    CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] +
+                        pkmn::savegen::encoding::Gen1Layout::BoxSpeciesRel] == first.speciesId);
+    CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] +
+                        pkmn::savegen::encoding::Gen1Layout::BoxSpeciesRel + 1] == second.speciesId);
+    CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] +
+                        pkmn::savegen::encoding::Gen1Layout::BoxSpeciesRel + 2] == 0xFF);
+
+    for (std::size_t i = 0; i < pkmn::savegen::encoding::Gen1Layout::BoxBlockSize; ++i) {
+        CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::CurrentBoxCacheOff + i] ==
+              working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] + i]);
+    }
+
+    const auto integrity =
+        pkmn::savegen::integrity::IntegrityValidator::ValidateGeneratedSave(working.bytes);
+    CHECK(integrity.ok);
+    CHECK(integrity.currentBoxCacheSynchronized);
+    CHECK(integrity.bank2ChecksumValid);
+    CHECK(integrity.bank3ChecksumValid);
+    for (bool valid : integrity.boxChecksumsValid) {
+        CHECK(valid);
+    }
+}
+
+TEST_CASE("Storage layout boundaries do not overlap adjacent main-save or checksum regions") {
+    using pkmn::savegen::encoding::Gen1Layout;
+
+    CHECK(Gen1Layout::PartyBase + Gen1Layout::PartyBlockLen == Gen1Layout::CurrentBoxCacheOff);
+    CHECK(Gen1Layout::CurrentBoxCacheOff + Gen1Layout::CurrentBoxCacheLen == Gen1Layout::MainChecksumOff - 1U);
+    CHECK(Gen1Layout::CurrentBoxCacheOff + Gen1Layout::BoxBlockSize - 1U ==
+          Gen1Layout::CurrentBoxCacheOff + Gen1Layout::CurrentBoxCacheLen - 1U);
+
+    for (std::size_t i = 0; i + 1 < 6U; ++i) {
+        CHECK(Gen1Layout::PermanentBoxOffsets[i] + Gen1Layout::BoxBlockSize ==
+              Gen1Layout::PermanentBoxOffsets[i + 1]);
+    }
+    for (std::size_t i = 6; i + 1 < Gen1Layout::PermanentBoxOffsets.size(); ++i) {
+        CHECK(Gen1Layout::PermanentBoxOffsets[i] + Gen1Layout::BoxBlockSize ==
+              Gen1Layout::PermanentBoxOffsets[i + 1]);
+    }
+    CHECK(Gen1Layout::PermanentBoxOffsets[5] + Gen1Layout::BoxBlockSize - 1U ==
+          Gen1Layout::Bank2PayloadEndInclusive);
+    CHECK(Gen1Layout::PermanentBoxOffsets[11] + Gen1Layout::BoxBlockSize - 1U ==
+          Gen1Layout::Bank3PayloadEndInclusive);
+    CHECK(Gen1Layout::Bank2PayloadEndInclusive + 1U == Gen1Layout::Bank2AllChecksumOff);
+    CHECK(Gen1Layout::Bank3PayloadEndInclusive + 1U == Gen1Layout::Bank3AllChecksumOff);
+
+    CHECK(Gen1Layout::BoxSpeciesTerminatorRel + 1U == Gen1Layout::BoxStructsRel);
+    CHECK(Gen1Layout::BoxStructsRel +
+              (Gen1Layout::BoxMaxMons * Gen1Layout::BoxStructSize) ==
+          Gen1Layout::BoxOTNamesRel);
+    CHECK(Gen1Layout::BoxOTNamesRel +
+              (Gen1Layout::BoxMaxMons * Gen1Layout::Gen1NameLen) ==
+          Gen1Layout::BoxNicknamesRel);
+    CHECK(Gen1Layout::BoxNicknamesRel +
+              (Gen1Layout::BoxMaxMons * Gen1Layout::Gen1NameLen) ==
+          Gen1Layout::BoxBlockSize);
+}
+
 TEST_CASE("Party comparison reports precise indexed field paths") {
     pkmn::savegen::model::RedSemanticState expected;
     pkmn::savegen::model::RedSemanticState actual;
@@ -534,6 +771,64 @@ TEST_CASE("Party comparison reports precise indexed field paths") {
                    difference.category ==
                        pkmn::savegen::comparison::DifferenceCategory::DerivedMismatch;
         }));
+}
+
+TEST_CASE("Storage comparison reports precise indexed field paths") {
+    pkmn::savegen::model::RedSemanticState expected;
+    pkmn::savegen::model::RedSemanticState actual;
+    expected.storage.selectedBoxNumber = 1;
+    actual.storage.selectedBoxNumber = 1;
+    for (int i = 1; i <= 12; ++i) {
+        expected.storage.boxes.push_back({i, 0, {}});
+        actual.storage.boxes.push_back({i, 0, {}});
+    }
+    expected.storage.boxes[0].count = 1;
+    expected.storage.boxes[0].pokemon = {ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"))};
+    expected.storage.hasCurrentBoxCache = true;
+    expected.storage.currentBoxCache = expected.storage.boxes[0];
+    actual.storage = expected.storage;
+    actual.storage.boxes[0].pokemon[0].nickname = "DIFF";
+    actual.storage.boxes[0].pokemon[0].moves[0].ppCurrent = 7;
+    actual.storage.currentBoxCache.pokemon[0].nickname = "CACHE";
+
+    const auto differences =
+        pkmn::savegen::comparison::SemanticComparator::CompareOwnedFields(expected, actual);
+
+    CHECK(std::any_of(
+        differences.begin(), differences.end(), [](const auto& difference) {
+            return difference.fieldPath == "storage.boxes[0].pokemon[0].nickname";
+        }));
+    CHECK(std::any_of(
+        differences.begin(), differences.end(), [](const auto& difference) {
+            return difference.fieldPath == "storage.boxes[0].pokemon[0].moves[0].ppCurrent";
+        }));
+    CHECK(std::any_of(
+        differences.begin(), differences.end(), [](const auto& difference) {
+            return difference.fieldPath == "storage.currentBoxCache.pokemon[0].nickname";
+        }));
+}
+
+TEST_CASE("Semantic comparator treats permitted canonical differences as non-blocking") {
+    pkmn::savegen::model::RedSemanticState expected;
+    pkmn::savegen::model::RedSemanticState actual;
+    expected.storage.selectedBoxNumber = 1;
+    actual.storage.selectedBoxNumber = 1;
+    for (int i = 1; i <= 12; ++i) {
+        expected.storage.boxes.push_back({i, 0, {}});
+        actual.storage.boxes.push_back({i, 0, {}});
+    }
+    expected.storage.boxes[0].count = 1;
+    expected.storage.boxes[0].pokemon = {ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"))};
+    actual.storage = expected.storage;
+    actual.storage.boxes[0].pokemon[0].level = 0;
+
+    const auto differences =
+        pkmn::savegen::comparison::SemanticComparator::CompareOwnedFields(expected, actual);
+
+    REQUIRE(differences.size() == 1);
+    CHECK(differences.front().category ==
+          pkmn::savegen::comparison::DifferenceCategory::PermittedCanonicalDifference);
+    CHECK_FALSE(pkmn::savegen::comparison::SemanticComparator::HasBlockingDifferences(differences));
 }
 
 TEST_CASE("Template profile and validator analyze the committed dummy") {
@@ -580,9 +875,12 @@ TEST_CASE("Milestone 3 generator writes owned semantic fields from target input"
     const auto tempDir = MakeTempDir("milestone2-generate");
     const auto outputPath = tempDir / "generated.sav";
     const auto reportPath = tempDir / "generated.generation-report.json";
+    const auto projectedInputPath = tempDir / "projected-dummy.red.json";
+    WriteJson(projectedInputPath, MakeStorageReadyProjection(
+                                     pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath()).document));
 
     pkmn::savegen::generation::GenerateRequest request;
-    request.inputJsonPath = DummyJsonPath();
+    request.inputJsonPath = projectedInputPath;
     request.templateSavePath = DummySavPath();
     request.profilePath = ProfilePath();
     request.outputSavePath = outputPath;
@@ -595,9 +893,14 @@ TEST_CASE("Milestone 3 generator writes owned semantic fields from target input"
     CHECK(result.outputBytes.size() == pkmn::savegen::encoding::Gen1Layout::ExpectedSaveSize);
     CHECK(result.integrity.ok);
     CHECK(result.integrity.mainChecksumValid);
-    CHECK_FALSE(result.integrity.bank2ChecksumValid);
-    CHECK_FALSE(result.integrity.bank3ChecksumValid);
-    CHECK(result.integrity.bankStorageUnchanged);
+    CHECK(result.integrity.bank2ChecksumValid);
+    CHECK(result.integrity.bank3ChecksumValid);
+    CHECK(result.integrity.currentBoxCacheSynchronized);
+    CHECK(result.report.overlappingWrites.empty());
+    CHECK(std::all_of(
+        result.report.ranges.begin(), result.report.ranges.end(), [](const auto& range) {
+            return range.classification == "template-inherited" || !range.serializerName.empty();
+        }));
 
     CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
               result.outputBytes,
@@ -641,7 +944,11 @@ TEST_CASE("Milestone 2 generation ignores target physicalImage and is determinis
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone2-determinism");
 
-    nlohmann::json variant = parsed.document;
+    nlohmann::json projected = MakeStorageReadyProjection(parsed.document);
+    const auto projectedPath = tempDir / "projected.red.json";
+    WriteJson(projectedPath, projected);
+
+    nlohmann::json variant = projected;
     variant["physicalImage"] = {
         {"encoding", "hex_uppercase_continuous"},
         {"standardSramHex", "DEADBEEF"},
@@ -654,7 +961,7 @@ TEST_CASE("Milestone 2 generation ignores target physicalImage and is determinis
     WriteJson(variantPath, variant);
 
     pkmn::savegen::generation::GenerateRequest first;
-    first.inputJsonPath = DummyJsonPath();
+    first.inputJsonPath = projectedPath;
     first.templateSavePath = DummySavPath();
     first.profilePath = ProfilePath();
     first.outputSavePath = tempDir / "first.sav";
@@ -674,7 +981,7 @@ TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output 
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone2-reject");
 
-    nlohmann::json badLocation = parsed.document;
+    nlohmann::json badLocation = MakeStorageReadyProjection(parsed.document);
     badLocation["decoded"]["location"]["map"]["id"] = 1;
     badLocation["decoded"]["location"]["x"]["value"] = 1;
     badLocation["decoded"]["location"]["y"]["value"] = 1;
@@ -689,6 +996,20 @@ TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output 
     request.outputReportPath = tempDir / "bad-location.report.json";
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
 
+    nlohmann::json viridianPokemonCenter = MakeStorageReadyProjection(parsed.document);
+    viridianPokemonCenter["decoded"]["location"]["map"]["id"] = 41;
+    viridianPokemonCenter["decoded"]["location"]["x"]["value"] = 3;
+    viridianPokemonCenter["decoded"]["location"]["y"]["value"] = 6;
+    viridianPokemonCenter["decoded"]["location"]["previousMap"]["id"] = 1;
+    viridianPokemonCenter["decoded"]["runtimeState"]["xBlockCoord"] = 1;
+    viridianPokemonCenter["decoded"]["runtimeState"]["yBlockCoord"] = 1;
+    const auto viridianPath = tempDir / "viridian-pokemon-center.red.json";
+    WriteJson(viridianPath, viridianPokemonCenter);
+    request.inputJsonPath = viridianPath;
+    request.outputSavePath = tempDir / "viridian-pokemon-center.sav";
+    request.outputReportPath = tempDir / "viridian-pokemon-center.report.json";
+    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
+
     const auto existingOutput = tempDir / "existing.sav";
     {
         std::ofstream out(existingOutput);
@@ -696,7 +1017,9 @@ TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output 
         out << "already here";
     }
 
-    request.inputJsonPath = DummyJsonPath();
+    const auto projectedPath = tempDir / "projected-dummy.red.json";
+    WriteJson(projectedPath, MakeStorageReadyProjection(parsed.document));
+    request.inputJsonPath = projectedPath;
     request.outputSavePath = existingOutput;
     request.outputReportPath = tempDir / "existing.report.json";
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
@@ -706,7 +1029,7 @@ TEST_CASE("Milestone 3 generation overwrites dummy-owned fields and avoids conta
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone3-contamination");
 
-    nlohmann::json mutated = parsed.document;
+    nlohmann::json mutated = MakeStorageReadyProjection(parsed.document);
     mutated["decoded"]["trainer"]["name"]["value"] = "ASH";
     mutated["decoded"]["rival"]["name"]["value"] = "GARY";
     mutated["decoded"]["trainer"]["trainerId"]["value"] = 12345;
@@ -873,6 +1196,7 @@ TEST_CASE("Milestone 3 generation overwrites dummy-owned fields and avoids conta
 TEST_CASE("Milestone 4 generation rejects malformed party data and unsupported deferred states") {
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone3-reject");
+    const nlohmann::json projected = MakeStorageReadyProjection(parsed.document);
 
     auto make_request = [&](const std::filesystem::path& inputPath,
                             const std::string& baseName) {
@@ -885,14 +1209,14 @@ TEST_CASE("Milestone 4 generation rejects malformed party data and unsupported d
         return request;
     };
 
-    nlohmann::json withPartyCountMismatch = parsed.document;
+    nlohmann::json withPartyCountMismatch = projected;
     withPartyCountMismatch["decoded"]["party"]["count"] = 1;
     const auto withPartyPath = tempDir / "with-party-count-mismatch.red.json";
     WriteJson(withPartyPath, withPartyCountMismatch);
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
         make_request(withPartyPath, "with-party-count-mismatch")));
 
-    nlohmann::json withInvalidParty = parsed.document;
+    nlohmann::json withInvalidParty = projected;
     auto invalidMon = PartyPokemonToJson(MakeDefaultPidgey(1, "BADMON"));
     invalidMon["stats"]["hpCurrent"] = invalidMon["stats"]["hpMax"].get<int>() + 1;
     withInvalidParty["decoded"]["party"]["count"] = 1;
@@ -902,21 +1226,21 @@ TEST_CASE("Milestone 4 generation rejects malformed party data and unsupported d
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
         make_request(withInvalidPartyPath, "with-invalid-party")));
 
-    nlohmann::json withDaycare = parsed.document;
+    nlohmann::json withDaycare = projected;
     withDaycare["decoded"]["daycare"]["inUse"] = true;
     const auto withDaycarePath = tempDir / "with-daycare.red.json";
     WriteJson(withDaycarePath, withDaycare);
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
         make_request(withDaycarePath, "with-daycare")));
 
-    nlohmann::json withHall = parsed.document;
+    nlohmann::json withHall = projected;
     withHall["decoded"]["hallOfFame"]["entryCount"] = 1;
     const auto withHallPath = tempDir / "with-hall.red.json";
     WriteJson(withHallPath, withHall);
     CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(
         make_request(withHallPath, "with-hall")));
 
-    nlohmann::json duplicateBag = parsed.document;
+    nlohmann::json duplicateBag = projected;
     duplicateBag["decoded"]["inventory"]["bag"]["count"] = 2;
     duplicateBag["decoded"]["inventory"]["bag"]["items"] = nlohmann::json::array({
         {
@@ -940,7 +1264,7 @@ TEST_CASE("Milestone 4 generation writes party data and remains deterministic ac
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone4-party-generate");
 
-    nlohmann::json mutated = parsed.document;
+    nlohmann::json mutated = MakeStorageReadyProjection(parsed.document);
     auto firstMon = PartyPokemonToJson(MakeDefaultPidgey(1, "BIRDY", 0x08, 10));
     auto secondMon = PartyPokemonToJson(MakePartyPokemon(
         36,

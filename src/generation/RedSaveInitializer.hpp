@@ -30,7 +30,9 @@ public:
             0,
             loadedTemplate.bytes.empty() ? 0 : loadedTemplate.bytes.size() - 1,
             "template-inherited",
-            "Initial deterministic working copy from canonical template"
+            "Initial deterministic working copy from canonical template",
+            "RedSaveInitializer",
+            "template"
         });
         return working;
     }

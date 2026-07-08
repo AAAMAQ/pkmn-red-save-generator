@@ -72,6 +72,38 @@ These sections are the intended source of gameplay state:
 | `decoded.worldState` | required when supported | Supported persistent world-state values. |
 | `decoded.runtimeState` | deferred / restricted | Only consume fields proven required for safe load/save behavior. |
 
+## Current Owned Surface
+
+Implemented generator-owned sections now include:
+
+- `decoded.trainer`
+- `decoded.rival`
+- `decoded.options`
+- `decoded.moneyAndCoins`
+- `decoded.playtime`
+- `decoded.location` only when it matches the emulator-validated Red's-house baseline
+- `decoded.badges`
+- `decoded.pokedex`
+- `decoded.inventory`
+- `decoded.party`
+- `decoded.pcStorage`
+- `decoded.currentBoxCache.selectedBoxNumber`
+- `decoded.currentBoxCache.boxChangedFlag`
+- `decoded.daycare`
+- `decoded.hallOfFame`
+- `decoded.events`
+- `decoded.trainerBattles`
+- `decoded.staticBattles`
+- `decoded.storyProgress`
+- `decoded.scripts`
+- `decoded.missableObjects`
+- `decoded.hiddenItems`
+- `decoded.hiddenCoins`
+- `decoded.visitedTowns`
+- a restricted `decoded.runtimeState` subset that is safe for the Red's-house baseline only
+
+The input `decoded.currentBoxCache.cache` is consumed only as a validation check. The generator rewrites cache bytes from permanent storage authority instead of trusting the input cache as the write source.
+
 ## Conversion Model Policy
 
 `conversionModel` is not a blanket authority for save generation.
@@ -97,6 +129,7 @@ These sections are useful for validation or provenance but are not intended dire
 Even after generation starts, some fields may remain deferred until they are proven safe:
 
 - runtime-only map buffers
+- non-baseline map/runtime clusters, including Viridian City Pokemon Center
 - post-checksum Bank 1 tail `0x3524..0x3FFF`
 - unknown Bank 2 and Bank 3 tails
 - ambiguous script/cache values

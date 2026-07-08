@@ -218,6 +218,47 @@
   - all six party records
   - OT names
   - nicknames
+
+## 2026-07-07
+
+### Milestone 5 storage findings
+
+- The generator now writes all 12 permanent PC boxes from semantic input instead of inheriting dummy storage banks.
+- The selected permanent box is copied into the Bank 1 current-box cache.
+- Generated outputs now have:
+  - valid main checksum
+  - valid bank 2 all-box checksum
+  - valid bank 3 all-box checksum
+  - valid per-box checksums for all 12 boxes
+  - byte-level current-box cache synchronization
+- The private full fixture reparsed in Save Genie with:
+  - 7 occupied permanent boxes
+  - Box 12 containing 5 Pokemon
+  - an empty selected box 11 cache matching the selected permanent box
+
+### Milestone 6 extended-state findings
+
+- The generator now serializes:
+  - daycare occupancy
+  - Hall of Fame entries
+  - missable objects
+  - hidden items
+  - hidden coins
+  - visited towns
+  - named event flags
+  - trainer-battle flags
+  - static-battle flags
+  - story-progress flags
+  - persistent script bytes
+  - a verified runtime subset for safe supported locations
+- The private full fixture generated successfully at the real Viridian City Pokemon Center location during automated validation, before emulator testing exposed the load-time defect documented below.
+- Save Genie reparse plus generator semantic comparison reported `PASS with permitted canonical differences`.
+- The only permitted differences were five boxed `level` fields where the source fixture already carried implausible boxed-level values such as `139`, `154`, and `255`.
+
+### Milestone 5-6 physical-image independence findings
+
+- Generating from the original private fixture, a version with `physicalImage` removed, and a version with replaced `physicalImage` produced identical output bytes.
+- All three generated outputs hashed to `77ba8ffd186e69e67a3119f58dba41f60a1a205e734e6bf49c014916d0cce7a5`.
 - Party comparison is now field-aware down to indexed paths such as move PP, nickname, current HP, DVs, and Stat Experience.
 - The party generation path still ignores the target `physicalImage` entirely.
 
@@ -287,3 +328,99 @@
   - unchanged empty current-box cache
   - unchanged suspicious permanent-box decode state under Policy A
 - This keeps Policy A for Milestone 4 load/save-again validation while leaving PC-storage semantics and checksum repair to Milestone 5.
+
+## 2026-07-07 - Milestone 5-6 Load-Time Corruption Incident
+
+- Emulator validation exposed a blocking load-time defect in the full Milestone 5-6 generated save.
+- Confirmed facts:
+  - the generated save was `32768` bytes
+  - automated generator validation passed
+  - main, per-box, bank 2, and bank 3 checksum validation passed
+  - Save Genie reparsed the generated save
+  - semantic comparison passed under the current comparator rules
+  - physical-image independence passed
+  - title screen and Continue appeared normally
+  - severe corruption appeared immediately after selecting Continue
+  - no walking, menu access, PC interaction, box switching, or in-game save occurred before the failure
+- The incident demonstrates that parser acceptance, semantic comparison, and checksum validity are insufficient emulator-safety evidence.
+- The four additional Save Genie diagnostic outputs produced from the exact failing save decoded:
+  - valid main, Bank 2, and Bank 3 checksums
+  - trainer `GOON` and rival `KILLUA`
+  - the six-party lineup
+  - all 12 PC boxes with expected counts `[20, 18, 17, 19, 20, 17, 0, 0, 0, 0, 0, 5]`
+  - Viridian Pokemon Center location `map=41`, `x=3`, `y=6`, `xBlock=1`, `yBlock=0`
+  - event/story/script counts matching the private fixture surface
+- These Save Genie diagnostics are diagnostic evidence only; they strengthen the finding that a save can be semantically readable while remaining unsafe for the game.
+- Binary comparison found that the failing save combined Viridian Pokemon Center location bytes with Red's-house/dummy map-runtime bytes around the map pointer, dimension, warp/object, and trainer-header regions.
+- Specific mismatched map/runtime fields include `0x2613`, `0x2615`, `0x2616`, `0x2618`, `0x261A`, `0x265A`, `0x278D`, `0x27D1`, `0x27D2`, `0x29E8`, and `0x2CDC`.
+- The strongest current finding is unsafe non-baseline location admission without a complete map-runtime serialization contract.
+- Corrective action:
+  - the location validator now fails closed to the emulator-validated Red's-house baseline only
+  - direct generation from the full private Viridian Pokemon Center fixture is rejected until full map-runtime serialization is implemented and emulator-proven
+  - a byte-provenance ledger now annotates generated report ranges with before/after evidence
+  - generation now rejects undeclared overlapping non-template write ranges
+  - broad runtime report ranges were split into exact subranges
+- Storage serialization remains experimental until the corrected Red's-house storage diagnostic save passes base-load and PC interaction tests in the emulator.
+- Milestone 6 progression is paused until Milestone 5 storage passes emulator validation.
+
+### Corrected Red's-house storage diagnostic emulator result
+
+- The corrected Red's-house storage diagnostic passed the base-load gate:
+  - Continue appeared
+  - loading reached Red's house second floor without corruption
+  - movement worked
+  - the menu opened
+  - trainer/core, money, coins, badges, and party looked correct
+- The tester could not access Bill's PC directly from the clean diagnostic state and therefore progressed gameplay before PC inspection.
+- Because gameplay occurred first, the resulting save is a gameplay-modified post-test save rather than a pristine generated baseline.
+- Visual PC storage verification passed provisionally:
+  - in-game box counts matched `[20, 18, 17, 19, 20, 17, 0, 0, 0, 0, 0, 5]`
+  - occupied/empty indicators matched the expected generated layout
+  - no visible box-list corruption was observed
+- Save Genie reparse of the gameplay-modified save reported valid main, Bank 2, and Bank 3 checksums.
+- The post-gameplay selected box state used current-box byte `0x82`, selected box `3`, and a dirty current-box cache containing `17` Pokemon.
+- Permanent box 3 decoded as empty, but a cache-aware comparison matched expected box 3 contents against the active current-box cache with no storage mismatches.
+- This supports the interpretation that the original load corruption fix is effective and that storage is viewable in game, while leaving controlled deposit, withdraw, box-switch, and post-save comparison as required Milestone 5 evidence.
+
+### Controlled storage interaction artifact analysis
+
+- The tester reported successful deposit, box switching, withdrawal, game-triggered save, normal save, and emulator close with no visible storage corruption.
+- The initially supplied local artifact `controlled-storage-interaction-start copy.sav` was not usable as post-save evidence:
+  - size `32768`
+  - SHA-256 `c1005fd8ad32468e748a1e7a2fda8c1fc36dad708d39e70fb9baaf7852c62ce3`
+  - Save Genie parsed it as invalid erased/mostly-`0xFF` SRAM
+  - main, Bank 2, and Bank 3 checksums were invalid
+- A sibling local artifact `controlled-storage-interaction-start.sav` parsed as the likely valid post-interaction candidate:
+  - size `32768`
+  - SHA-256 `b0b86a6581c1ce1199d1dc4860c452ea6efa6959e60e1ba910bcbcb69950db03`
+  - main checksum valid
+  - Bank 2 and Bank 3 all-box checksums valid
+  - all 12 per-box checksums valid
+  - Box 3 cache from the previous test was flushed to permanent Box 3
+  - `PEGGY` / `PIDGEY` moved from the party to the active Box 11 cache
+- This is strong evidence for deposit, selected-box cache, and box write-back behavior.
+- This intermediate artifact was superseded by the final post-withdrawal artifact.
+
+### Final Milestone 5 storage interaction evidence
+
+- The latest valid post-withdrawal save was preserved privately:
+  - size `32768`
+  - SHA-256 `3da8ec51484f2aa707c32dde36dc70712cb29163ef992bdb672a79c2bcfa89fe`
+- Save Genie reparsed it successfully.
+- Checksum validation passed:
+  - main checksum stored/calculated `0x02`
+  - Bank 2 all-box checksum stored/calculated `0x92`
+  - Bank 3 all-box checksum stored/calculated `0x2B`
+  - all 12 per-box checksums valid
+- Storage interaction results:
+  - selected/current box decoded as Box `12`
+  - raw current-box byte `0x8B`
+  - current-box cache count `4`
+  - current-box cache contains `SLAYER`, `PARASECT`, `PIDGEOT`, and `RHYHORN`
+  - permanent Box 11 contains deposited `PEGGY` / `PIDGEY`
+  - permanent Box 12 count is `0`, consistent with Box 12 being represented by the active current-box cache
+  - party count is `6`
+  - party slot 6 contains withdrawn `RED` / `CHARIZARD`
+  - `RED` is fainted with HP `0/165`
+- No Pokemon loss, duplication, name corruption, checksum corruption, graphical corruption, or text corruption was reported or found in the post-save parse.
+- Milestone 5 storage validation is complete.
