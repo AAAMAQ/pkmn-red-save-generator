@@ -100,9 +100,23 @@ Implemented generator-owned sections now include:
 - `decoded.hiddenItems`
 - `decoded.hiddenCoins`
 - `decoded.visitedTowns`
+- named fields under `decoded.worldState.storyEvidence`
 - a restricted `decoded.runtimeState` subset that is safe for the Red's-house baseline only
 
 The input `decoded.currentBoxCache.cache` is consumed only as a validation check. The generator rewrites cache bytes from permanent storage authority instead of trusting the input cache as the write source.
+
+Generated saves require the selected permanent box and current-box cache to be synchronized. Emulator-modified post-save files may show a dirty selected-box cache that differs from the permanent selected box after normal gameplay deposit operations; that state is validation evidence for the game, not a generation input authority.
+
+Milestone 6 extended-state requirements:
+
+- `decoded.missableObjects` must provide the complete 228-entry named list
+- `decoded.scripts.scripts` must provide the complete 97-entry named script list
+- script entries must fit inside the persistent script byte range and must not overlap
+- event flags are written only from named semantic sources; unnamed event bits are canonicalized to clear
+- occupied Daycare requires a valid deposited Pokemon and a semantic deposited level in `1..100`
+- named story-evidence/world bits are consumed from `decoded.worldState.storyEvidence`
+- raw non-baseline location data remains rejected unless a complete safe-location profile exists
+- the completed Milestone 6 Red's-house validation path confirmed Hall of Fame, event, script, hidden-object, missable, visited-town, and story-evidence semantics through emulator save-again and Save Genie reparse
 
 ## Conversion Model Policy
 

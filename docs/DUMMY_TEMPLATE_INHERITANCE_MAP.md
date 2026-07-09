@@ -1,6 +1,6 @@
 # Dummy Template Inheritance Map
 
-Status: the current generator owns party data, all 12 permanent PC boxes, the current-box cache, Daycare, Hall of Fame, named event/state flags, scripts, missables, hidden objects, and the Red's-house baseline location subset. Non-baseline location support is disabled after the Milestone 5-6 load-time corruption incident. Runtime-heavy map/load fields and unknown-tail regions still remain inherited.
+Status: through completed Milestone 6, the generator owns party data, all 12 permanent PC boxes, the current-box cache, Daycare, Hall of Fame, named event/state flags, scripts, missables, hidden objects, and the Red's-house baseline location subset. Non-baseline location support is disabled after the Milestone 5-6 load-time corruption incident. Runtime-heavy map/load fields and unknown-tail regions still remain inherited.
 
 Purpose:
 
@@ -71,7 +71,7 @@ Purpose:
     - `0x0598-0x1857` Hall of Fame block
     - `0x284E` Hall of Fame entry count
     - `0x29D6` badge mirror
-    - `0x2CF4-0x2D2B` daycare block
+    - `0x2CF4-0x2D2C` daycare block
     - `0x2F2C-0x30BF` party block
   - regenerated checksum:
     - `0x3523` main checksum
@@ -84,3 +84,4 @@ Purpose:
 - The highest-risk inherited areas are now runtime-heavy Bank 0 and Bank 1 ranges plus the unknown tails in Banks 2 and 3.
 - No final generator should ship without making the overwritten, derived, synchronized, regenerated, and inherited ranges explicit in its generation report.
 - The Milestone 5-6 incident specifically elevated map-runtime bytes around `0x2612-0x27D3`, `0x29C5-0x29CA`, and `0x2CDC-0x2CE5` to load-sensitive inherited state. Non-baseline maps must not be enabled until those fields have a documented semantic authority and emulator proof.
+- Milestone 6 currently overwrites `0x0598-0x1857` Hall of Fame, `0x284E` Hall of Fame count, `0x2852-0x286E` missables, `0x289C-0x299B` scripts, `0x29F3-0x2B32` named event flags, `0x2CF4-0x2D2C` Daycare, selected story-evidence/world bits, and selected runtime bits. Non-baseline map-runtime clusters remain inherited and disabled.

@@ -1,132 +1,212 @@
 # Pkmn Red Save Generator
 
-Status: Milestone 4 party serialization implemented.
+Status: Milestones 0-6 complete. Milestones 7-9 remain.
 
-This project generates a new Pokemon Red save from semantic `.red.json` data. It does not use the target `.red.json` `physicalImage` to reconstruct the original binary. Output is intended to be gameplay-equivalent and structurally valid, not byte-identical to the source save.
+This project generates a new Pokemon Red `.sav` from semantic `.red.json` data produced by the completed Pokemon Red Save Genie. It is a semantic save generator, not an archival byte-for-byte reconstructor.
+
+The target `.red.json` `physicalImage` is deliberately ignored as generation authority. The generator starts from the committed canonical dummy `.sav`, overwrites supported semantic state, regenerates integrity values, writes provenance, and validates through parser and emulator evidence.
 
 ## Project Boundary
 
-- Writable project: this repository root
-- Read-only prerequisite: sibling `Pkmn Red Save Genie` repository
+- Writable project: this repository.
+- Read-only prerequisite: sibling `Pkmn Red Save Genie` repository.
+- Template resource: `Dummy Save/`.
 
-The prerequisite Save Genie remains the trusted Red-side research and parsing codebase. This generator is a separate repository with a different goal:
+The Save Genie is the trusted read-only parser and research oracle. The generator is separate:
 
-- Save Genie: archival export and byte-identical reconstruction via preserved raw bytes
-- Save Generator: deterministic semantic save synthesis without using the target `physicalImage`
+- Save Genie: decode, analyze, and archival reconstruction using preserved raw bytes.
+- Save Generator: deterministic semantic synthesis without using the target `physicalImage`.
 
-## Core Rules
+## Current Coverage
+
+Implemented and emulator-validated through Milestone 6:
+
+- trainer and rival names
+- trainer ID
+- options and playtime
+- money and coins
+- badges plus badge mirror
+- Pokedex owned and seen bitfields
+- bag and PC item inventories
+- active party Pokemon
+- all 12 permanent PC boxes
+- selected box and current-box cache
+- per-box checksums
+- Bank 2 and Bank 3 all-box checksums
+- Daycare occupancy and deposited Pokemon structure
+- Hall of Fame records
+- named event flags
+- trainer battle flags
+- static battle flags
+- story progress flags
+- missable objects
+- hidden items and hidden coins
+- visited towns and Fly destination bitfields
+- persistent script bytes exposed by Save Genie
+- Red's-house safe runtime/world subset
+
+The latest Milestone 6 emulator validation confirmed normal load, movement, menus, travel to a Pokemon Center, Hall of Fame access with 18 entries, deposit into Box 11, Rattata capture, normal save-again, valid checksums, and successful Save Genie reparse.
+
+## Safety Rules
 
 - The target `.red.json` supplies semantic state only.
-- The raw `physicalImage` embedded in the target `.red.json` is forbidden as generation input.
-- The standalone dummy `.sav` under `Dummy Save/` is an explicitly permitted canonical template candidate.
-- The dummy `.red.json`, `PokemonSummary.json`, `PokemonBoxes.json`, and `SaveGenieSummary.txt` are audit and validation references only.
-- Output must represent the target semantic state, not the dummy player.
-- Success means semantic equivalence plus emulator validity, not byte identity.
+- The target `physicalImage` is never used to generate output.
+- The standalone dummy `.sav` under `Dummy Save/` is permitted only as a canonical initialized template.
+- The dummy template is never modified in place.
+- Outputs are gameplay-equivalent and structurally valid, not byte-identical to the source save.
+- Unsupported non-empty state must fail or be documented; it must not be silently discarded.
+- Non-baseline locations fail closed unless their full runtime state is emulator-proven.
 
-## Current Repository State
+## Safe Location Policy
 
-- Git repository initialized at the generator root on 2026-06-24.
-- Existing Xcode project preserved and now builds against the shared source tree.
-- A first-class CMake build and doctest-based test target now exist alongside Xcode.
-- Milestones 1-4 are now implemented for the currently owned semantic surface:
-  - foundation, validation, and template safety
-  - minimal valid save generation
-  - core trainer, item, Pokedex, and conservative event generation
-  - active party Pokemon serialization
+Currently supported generated start location:
 
-## Key Milestone 0 Findings
+- Red's house, second floor.
 
-- The generator folder began as an Xcode skeleton and was not previously a Git repository.
-- The supplied dummy save is a real `0x8000` Pokemon Red save with a valid main checksum.
-- The dummy is not an empty baseline:
-  - trainer name `RED`
-  - rival name `BLUE`
-  - trainer ID `60066`
-  - money `3000`
-  - playtime `0:00:09`
-  - location `Red's house (second floor)`
-  - PC item storage contains `POTION x1`
-  - current box cache is empty
-  - permanent boxes 1-12 all decode as `count = 20`
-  - bank 2 and bank 3 all-box checksums are invalid
+Viridian City Pokemon Center remains a regression case. A previous generated save using map ID and coordinates without a complete runtime-state contract corrupted immediately after selecting Continue. The generator now rejects that raw source location until the full map-runtime cluster is owned and emulator-validated.
 
-This means the dummy cannot be treated as a harmless blank save. Any template-based generator must explicitly overwrite or clear all covered semantic regions and regenerate all affected checksums before output.
+## Build
 
-## Repository Layout
+CMake:
 
-- `Dummy Save/`
-  - Canonical template candidate and companion audit material
-- `Pkmn Red Save Generator/`
-  - Xcode entrypoint folder with the CLI `main.cpp`
-- `Pkmn Red Save Generator.xcodeproj/`
-  - Existing Xcode project metadata
-- `src/`
-  - Milestone 1 source modules for CLI, input, model, template, encoding, integrity, generation, comparison, and reporting
-- `tests/`
-  - doctest-based unit and integration coverage for Milestone 1
-- `profiles/`
-  - machine-readable supported target profiles
-- `third_party/`
-  - vendored `nlohmann/json` and `doctest`
-- `docs/`
-  - scope, audit, policy, roadmap, and execution-plan documents
+```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
 
-## Milestone 1 Capabilities
+Xcode:
 
-- `validate-input --input <target.red.json>`
-  - validates supported schema and semantic sections
-  - strips the target `physicalImage` before semantic-state construction
-- `validate-template --template <dummy.sav> --profile <profile.json>`
-  - validates size, hash, checksum expectations, and suspicious baseline traits
-- `show-profile --profile <profile.json>`
-  - prints the active supported target profile
+```sh
+xcodebuild -project "Pkmn Red Save Generator.xcodeproj" \
+  -scheme "Pkmn Red Save Generator" \
+  -configuration Debug \
+  -derivedDataPath .xcode-derived \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY= \
+  build
+```
 
-## Current Generator Capabilities
+## CLI Usage
 
-- `generate --input <target.red.json> --template <dummy.sav> --profile <profile.json> --output <generated.sav> --report <generated.generation-report.json>`
-  - generates a deterministic Pokemon Red save from semantic `.red.json` data
-  - ignores the target `physicalImage`
-  - preserves the committed dummy template unchanged
-- `compare-semantics --target-json <target.red.json> --reparsed-json <savegenie-output.red.json>`
-  - compares currently owned semantic fields after Save Genie reparse
+Show help:
 
-Currently owned through Milestone 4:
+```sh
+build/pkmn-red-save-generator --help
+```
 
-- trainer and rival identity
-- trainer ID
-- options
-- playtime
-- money and coins
-- badges
-- conservative safe baseline location
-- Pokedex seen and owned bitfields
-- bag inventory
-- PC item inventory
-- conservative visited-town, hidden-item, and hidden-coin subset
-- full active party serialization:
-  - party count
-  - species list and terminator
-  - party records
-  - OT names
-  - nicknames
-  - moves, PP, DVs, Stat Experience, current HP, status, and stored live stats
+Validate semantic input without writing a save:
 
-## Build Paths
+```sh
+build/pkmn-red-save-generator validate input.red.json
+build/pkmn-red-save-generator inspect input.red.json
+```
 
-- CMake:
-  - `cmake -S . -B build`
-  - `cmake --build build`
-  - `ctest --test-dir build --output-on-failure`
-- Xcode:
-  - open `Pkmn Red Save Generator.xcodeproj`
-  - or build from the command line with code signing disabled for local CLI builds
+Generate with repository defaults:
 
-## Next Milestones
+```sh
+build/pkmn-red-save-generator generate input.red.json output.sav \
+  --report output.sav.generation-report.json
+```
 
-- Milestone 5: PC storage and current-box cache synchronization
-- Milestone 6: daycare, Hall of Fame, extended story/event/world state
-- Milestone 7: broader semantic-equivalence coverage
-- Milestone 8: expanded emulator and save-again validation
-- Milestone 9: release hardening
+Generate with explicit resources:
 
-See `docs/PROJECT_ROADMAP.md` for the detailed roadmap.
+```sh
+build/pkmn-red-save-generator generate \
+  --input input.red.json \
+  --template "Dummy Save/Pokemon - Red Version (USA, Europe) (SGB Enhanced).sav" \
+  --profile profiles/pokemon-red-usa-europe-v1.json \
+  --output output.sav \
+  --report output.generation-report.json
+```
+
+Dry-run generation, summary, and range provenance:
+
+```sh
+build/pkmn-red-save-generator generate input.red.json dry-run.sav \
+  --dry-run \
+  --summary \
+  --show-ranges \
+  --report dry-run.report.json
+```
+
+Validate a generated save:
+
+```sh
+build/pkmn-red-save-generator validate-save --input-save output.sav
+```
+
+Validate an emulator-modified save whose selected box cache is intentionally dirty:
+
+```sh
+build/pkmn-red-save-generator validate-save --input-save post-save.sav --allow-dirty-current-box
+```
+
+Check deterministic output:
+
+```sh
+build/pkmn-red-save-generator check-determinism \
+  --input input.red.json \
+  --template "Dummy Save/Pokemon - Red Version (USA, Europe) (SGB Enhanced).sav" \
+  --profile profiles/pokemon-red-usa-europe-v1.json \
+  --work-dir local-validation/determinism
+```
+
+Check physical-image isolation:
+
+```sh
+build/pkmn-red-save-generator check-physical-image-isolation \
+  --input input.red.json \
+  --template "Dummy Save/Pokemon - Red Version (USA, Europe) (SGB Enhanced).sav" \
+  --profile profiles/pokemon-red-usa-europe-v1.json \
+  --work-dir local-validation/physical-image
+```
+
+Compare target semantics with a Save Genie reparse:
+
+```sh
+build/pkmn-red-save-generator compare-semantics \
+  --target-json input.red.json \
+  --reparsed-json generated.red.json
+```
+
+## Validation Guarantees
+
+For currently supported fields, validation covers:
+
+- input schema and semantic model construction
+- physical-image isolation
+- template size/hash checks
+- deterministic output
+- write provenance and overlap detection
+- main checksum
+- per-box checksums
+- Bank 2 and Bank 3 all-box checksums
+- Save Genie reparse
+- field-aware semantic comparison
+- emulator load and save-again validation for Milestones 2-6
+
+The game displays trainer IDs as five digits. The Milestone 6 validation save uses numeric trainer ID `257`, displayed in-game as `00257`.
+
+## Known Non-Guarantees
+
+- The generator does not claim byte-identical reconstruction.
+- Unsupported locations are rejected rather than guessed.
+- Broader map-runtime serialization is deferred.
+- Full equivalence across every decoded Save Genie field is deferred to Milestone 7.
+- Broad emulator coverage across many representative saves is deferred to Milestone 8.
+- Stable release hardening is deferred to Milestone 9.
+
+## Documentation
+
+Important project documents:
+
+- `docs/PROJECT_ROADMAP.md`
+- `docs/VALIDATION_PLAN.md`
+- `docs/MILESTONE_5_STORAGE_CONTRACT.md`
+- `docs/MILESTONE_6_EXTENDED_STATE_CONTRACT.md`
+- `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
+- `docs/SEMANTIC_EQUIVALENCE_CONTRACT.md`
+- `docs/CANONICALIZATION_POLICY.md`
+- `docs/KNOWN_LIMITATIONS.md`

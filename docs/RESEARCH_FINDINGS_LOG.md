@@ -361,7 +361,7 @@
   - generation now rejects undeclared overlapping non-template write ranges
   - broad runtime report ranges were split into exact subranges
 - Storage serialization remains experimental until the corrected Red's-house storage diagnostic save passes base-load and PC interaction tests in the emulator.
-- Milestone 6 progression is paused until Milestone 5 storage passes emulator validation.
+- At the time of the incident, Milestone 6 progression was paused until Milestone 5 storage passed emulator validation.
 
 ### Corrected Red's-house storage diagnostic emulator result
 
@@ -424,3 +424,52 @@
   - `RED` is fainted with HP `0/165`
 - No Pokemon loss, duplication, name corruption, checksum corruption, graphical corruption, or text corruption was reported or found in the post-save parse.
 - Milestone 5 storage validation is complete.
+
+### Milestone 6 Red's-house extended-state automated validation
+
+- The raw private full semantic fixture still fails closed because its non-baseline location is not emulator-proven.
+- A Red's-house projection with full extended semantics generated a `32768` byte save with valid main, Bank 2, and Bank 3 checksums.
+- The generated save SHA-256 for the current local validation output is `72bc7b91e4665858b6f7ad4f8f9b96f68b61862739e2d3877607f2b6c154bb55`.
+- Generation with original, removed, and replaced target `physicalImage` produced byte-identical `.sav` outputs.
+- Save Genie reparsed the generated output successfully and reported valid main, Bank 2, and Bank 3 checksums.
+- Field-aware semantic comparison passed with only permitted boxed-level canonical differences.
+- Named story-evidence/world bits for rods, Saffron guards, Lapras, starter, healing, and Lorelei room state now reparse as set when the source semantic input sets them.
+- The generated report contained zero overlapping writes.
+- Newly verified generated ranges include:
+  - Hall of Fame `0x0598-0x1857` and record count `0x284E`
+  - missable objects `0x2852-0x286E`
+  - scripts `0x289C-0x299B`
+  - named event flags `0x29F3-0x2B32`
+  - Daycare `0x2CF4-0x2D2C`
+  - selected runtime bits for the Red's-house baseline
+- This automated evidence was not, by itself, Milestone 6 completion evidence because emulator load, interaction, save-again, post-save reparse, and post-save semantic comparison were still required.
+
+### Milestone 6 emulator and post-save validation
+
+Proven findings:
+
+- the Red's-house extended-state validation save loads in the emulator without graphical corruption, malformed text, crashes, freezes, or obvious runtime failure
+- movement, menus, travel to a Pokemon Center, Hall of Fame viewing, deposit into Box 11, Rattata capture, and normal save-again all worked
+- the post-save file remained `32768` bytes and reparsed successfully through Save Genie
+- post-save main, Bank 2, Bank 3, and all 12 per-box checksums were valid
+- Hall of Fame retained exactly 18 entries with identical ordering and contents after save-again
+- Daycare, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named events, and scripts matched the generated candidate exactly after save-again
+- `worldState` drift was expected from normal gameplay travel to Viridian City Pokemon Center
+- `PEGGY` / `PIDGEY` moved from party slot 6 into the selected Box 11 current-box cache
+- the caught `RATTATA` entered party slot 6 with OT `GOON` and OT ID `257`
+- numeric trainer ID is `257` (`0x0101`), displayed by the game as a five-digit value
+- selected-box cache can legitimately differ from the permanent selected box after deposit when the dirty flag is set
+
+Implementation decisions:
+
+- keep generated-save selected-box cache synchronized with the permanent selected box
+- allow explicit dirty-cache validation only for emulator-modified saves
+- keep Viridian Pokemon Center generation disabled until complete map-runtime serialization exists
+- document the game-play drift categories rather than treating normal travel, capture, deposit, and playtime changes as generator defects
+
+Open questions:
+
+- broader map-runtime contracts for non-baseline locations
+- direct occupied-Daycare deposit/withdraw validation with a dedicated fixture
+- broad representative-save coverage for event-heavy and location-heavy states
+- whether boxed-level oracle anomalies should be fixed in Save Genie or remain generator-side permitted canonical differences

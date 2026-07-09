@@ -92,3 +92,17 @@ The final post-withdrawal artifact closed the gate:
 - main, Bank 2, Bank 3, and all per-box checksums validate
 
 This confirms that generated storage survives real emulator load, Bill's PC access, deposit, box switching, game-triggered save, withdrawal, normal save, and Save Genie post-save reparse.
+
+## Milestone 6 Follow-Up Observation
+
+The Milestone 6 save-again validation deposited `PEGGY` / `PIDGEY` into selected Box 11 and then saved normally without switching boxes. Save Genie reparsed the post-save file with:
+
+- selected box `11`
+- raw current-box byte `0x8A`
+- current-box cache count `1`
+- current-box cache containing `PEGGY` / `PIDGEY`
+- permanent Box 11 still empty
+- dirty flag set
+- main, Bank 2, Bank 3, and all 12 per-box checksums valid
+
+This reinforces the storage authority rule: freshly generated saves synchronize the selected permanent box and current-box cache, while emulator-modified saves may keep the active selected box in the dirty cache until the game flushes it through a box-switch flow.

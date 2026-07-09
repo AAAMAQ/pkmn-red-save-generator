@@ -18,7 +18,7 @@ Where `~=` means equivalence under the categories below.
 
 These must match exactly after reparsing when supported.
 
-Currently owned through the implemented Milestone 5 and current Milestone 6 code surface, with Milestone 5 blocked and Milestone 6 paused pending emulator safety proof:
+Currently owned through implemented and emulator-validated Milestone 6 for the Red's-house safe-location profile:
 
 - trainer name
 - rival name
@@ -56,6 +56,7 @@ Currently owned through the implemented Milestone 5 and current Milestone 6 code
 - selected box number and changed flag
 - current-box cache content as a synchronized duplicate of the selected permanent box
 - daycare occupancy and stored Pokemon
+- daycare trailing deposited-level byte
 - Hall of Fame entry count and records
 - named event flags
 - trainer-battle flags
@@ -63,6 +64,7 @@ Currently owned through the implemented Milestone 5 and current Milestone 6 code
 - story-progress flags
 - persistent script bytes exposed by Save Genie
 - missable objects
+- named story-evidence/world bits exposed by Save Genie
 
 Still deferred or temporarily disabled:
 
@@ -70,6 +72,8 @@ Still deferred or temporarily disabled:
 - Viridian City Pokemon Center until full map-runtime serialization is implemented and emulator-proven
 - unsupported runtime-heavy world bytes outside the documented subset
 - fields not yet surfaced by a stable named semantic rule
+
+For emulator-modified post-save files, current-box cache divergence is permitted when the selected box dirty flag is set and the active cache contains the gameplay-modified selected box. This is not permitted for freshly generated output, where the cache must be synchronized with the selected permanent box.
 
 ### Required normalized match
 
@@ -101,9 +105,10 @@ These may differ from the target source binary and still pass:
 - padding values
 - canonical default bytes
 - stale raw cache differences eliminated by synchronization
-- boxed or daycare stored `level` when the source fixture carries an implausible boxed-level decode and `experience` remains the stronger semantic authority
+- boxed storage `level` when the source fixture carries an implausible boxed-level decode and `experience` remains the stronger semantic authority
 - dummy-template bytes in explicitly documented inherited ranges
 - Red's-house location projection for diagnostic storage saves derived from non-baseline private fixtures
+- expected gameplay drift after emulator validation, such as travel to a Pokemon Center, playtime increase, party/storage changes from deposit or capture, dirty current-box cache state, and runtime map-state changes caused by normal gameplay
 
 ### Unsupported Or Deferred
 
@@ -139,3 +144,5 @@ Release-grade acceptance requires:
 - second reparse preserving semantic equivalence
 
 For Milestone 5 and Milestone 6, Save Genie reparse plus semantic comparison is explicitly insufficient without emulator base-load, feature interaction, save-again, and post-save reparse evidence.
+
+Milestone 6 satisfies this acceptance standard for the Red's-house safe-location profile. Broader safe-location support remains outside the completed equivalence surface.

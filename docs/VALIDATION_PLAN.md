@@ -1,6 +1,6 @@
 # Validation Plan
 
-Milestone 1 implements the first validation layers. Generation validation is now implemented through the current Milestone 5 and Milestone 6 code surface for the currently owned semantic state.
+Milestone 1 implemented the first validation layers. Generation validation is now implemented through completed Milestone 6 for the currently owned semantic state.
 
 ## Stage 1: Input Validation
 
@@ -54,13 +54,16 @@ Milestone 1 implements the first validation layers. Generation validation is now
   - full active-party count and species-list structure
   - party record field bounds, move packing, name encodability, and HP/status invariants
   - deterministic party serialization independent of target `physicalImage`
-- Experimental Milestone 5 and paused Milestone 6 code now additionally validate:
+- Milestone 5 and Milestone 6 code now additionally validate:
   - all 12 permanent boxes
   - current-box cache agreement with the selected permanent box
   - per-box checksums and bank 2 and 3 all-box checksums
   - daycare occupancy consistency
   - Hall of Fame record count and entry structure
   - event-flag source agreement across `events`, `trainerBattles`, `staticBattles`, and `storyProgress`
+  - complete 228-entry missable object input
+  - complete 97-entry script input with no overlapping script byte ranges
+  - named story-evidence/world bits exposed by Save Genie
 
 ## Stage 5: Independent Reparse
 
@@ -145,16 +148,20 @@ Milestone 4 emulator save-again evidence is now also recorded for the approved l
 - Save Genie reparsed the post-save file successfully
 - generator-side semantic comparison still reported `PASS`
 
-Current Milestone 5 and Milestone 6 automated/private-fixture evidence before emulator testing:
+Milestone 6 automated/private-fixture evidence:
 
-- the private full semantic fixture now generates successfully without using target `physicalImage`
-- Save Genie reparses the generated full-fixture save successfully
+- the raw private full semantic fixture fails closed because its non-baseline location is not emulator-proven
+- the private Red's-house projection generates successfully without using target `physicalImage`
+- Save Genie reparses the generated Red's-house extended-state save successfully
 - generator-side semantic comparison reports `PASS with permitted canonical differences`
 - the only reported permitted differences are a small set of boxed `level` fields whose source values are implausible oracle decodes
 - all permanent box checksums and bank 2 and 3 all-box checksums validate on generated output
-- generating from the original fixture, a version with `physicalImage` removed, and a version with replaced `physicalImage` produced byte-identical `.sav` outputs
+- generation with original, removed, and replaced target `physicalImage` produced byte-identical `.sav` outputs
+- the generated save is `32768` bytes and has no overlapping generation-report writes
+- Daycare, Hall of Fame, named events, trainer/static/story flags, scripts, missables, hidden items, hidden coins, visited towns, and named story-evidence/world bits are included in the comparison surface
+- CLI validation now includes `validate-save`, `inspect`, dry-run generation, write-range display, determinism checks, and physical-image-isolation checks
 
-Current Milestone 5 and Milestone 6 emulator evidence:
+Milestone 5 and Milestone 6 emulator evidence:
 
 - title screen and Continue appeared normally
 - the original full Milestone 5-6 save corrupted immediately after selecting Continue
@@ -167,8 +174,19 @@ Current Milestone 5 and Milestone 6 emulator evidence:
 - the final post-withdrawal artifact validated selected/current Box 12, withdrawn `RED` in party slot 6, deposited `PEGGY` in permanent Box 11, active Box 12 current-box cache, all per-box checksums, and Bank 2/3 all-box checksums
 - controlled deposit, withdraw, box-switch, save-again, and post-save comparison passed for Milestone 5
 - the failure is documented in `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
-- direct full-fixture generation now fails closed because the source location is not in the emulator-validated location set
-- Milestone 6 remains incomplete until Daycare, Hall of Fame, broader event/world-state, safe-location, and emulator save-again validation pass
+- direct raw fixture generation now fails closed because the source location is not in the emulator-validated location set
+- the Milestone 6 Red's-house extended-state candidate passed base-load emulator validation
+- movement, menus, travel to a Pokemon Center, and general gameplay behaved normally
+- Hall of Fame viewing confirmed 18 completed entries
+- depositing `PEGGY` / `PIDGEY` into Box 11 worked normally
+- catching `RATTATA` worked normally and preserved coherent party state
+- the game saved normally after the validation path
+- post-save Save Genie reparse passed
+- post-save validation reported valid main, Bank 2, Bank 3, and all 12 per-box checksums
+- post-save analysis confirmed Daycare, Hall of Fame, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named events, and scripts survived unchanged
+- post-save `worldState` differences were expected gameplay drift from travel to Viridian City Pokemon Center
+- current-box cache divergence after deposit was accepted only with an explicit dirty-cache validation mode
+- numeric trainer ID remained `257` (`0x0101`), displayed by the game as five digits
 
 Pokedex verification wording for Milestone 3 must remain precise:
 
@@ -233,5 +251,6 @@ Milestone 2 now has an automated minimal generator, main checksum regeneration, 
 
 Current open validation gap:
 
-- emulator PC interaction for Milestone 5
-- emulator Daycare, Hall of Fame, and broader navigation interaction for Milestone 6
+- broader emulator coverage across representative saves for Milestones 7-8
+- full map-runtime support for non-baseline locations
+- direct Daycare deposit/withdraw interaction for an occupied-Daycare fixture

@@ -36,6 +36,7 @@ struct GenerateRequest {
     std::filesystem::path profilePath;
     std::filesystem::path outputSavePath;
     std::filesystem::path outputReportPath;
+    bool dryRun = false;
 };
 
 struct GenerateResult {
@@ -111,13 +112,19 @@ public:
             throw std::runtime_error(message);
         }
 
-        WriteFile(request.outputSavePath, working.bytes);
-        working.report.outputPath = request.outputSavePath.lexically_normal().string();
+        if (!request.dryRun) {
+            WriteFile(request.outputSavePath, working.bytes);
+        }
+        working.report.outputPath = request.dryRun
+            ? ("dry-run:" + request.outputSavePath.lexically_normal().string())
+            : request.outputSavePath.lexically_normal().string();
         working.report.outputSize = working.bytes.size();
         working.report.outputSha256 = template_support::Sha256::Hex(working.bytes);
         AttachByteProvenanceAndValidateRanges(
             working.report, loadedTemplate.bytes, working.bytes);
-        WriteReport(request.outputReportPath, working.report);
+        if (!request.outputReportPath.empty()) {
+            WriteReport(request.outputReportPath, working.report);
+        }
 
         GenerateResult result;
         result.report = working.report;
@@ -136,22 +143,26 @@ private:
         const auto normalizedOutput = std::filesystem::absolute(request.outputSavePath).lexically_normal();
         const auto normalizedReport = std::filesystem::absolute(request.outputReportPath).lexically_normal();
 
-        if (normalizedOutput == normalizedInput) {
+        if (request.outputSavePath.empty()) {
+            if (!request.dryRun) {
+                throw std::runtime_error("Output save path is required unless --dry-run is used.");
+            }
+        } else if (normalizedOutput == normalizedInput) {
             throw std::runtime_error("Output save path must not collide with the input JSON path.");
         }
-        if (normalizedOutput == normalizedTemplate) {
+        if (!request.outputSavePath.empty() && normalizedOutput == normalizedTemplate) {
             throw std::runtime_error("Output save path must not collide with the canonical template path.");
         }
-        if (normalizedReport == normalizedTemplate) {
+        if (!request.outputReportPath.empty() && normalizedReport == normalizedTemplate) {
             throw std::runtime_error("Output report path must not collide with the canonical template path.");
         }
-        if (normalizedReport == normalizedOutput) {
+        if (!request.outputReportPath.empty() && !request.outputSavePath.empty() && normalizedReport == normalizedOutput) {
             throw std::runtime_error("Output report path must be different from the output save path.");
         }
-        if (std::filesystem::exists(request.outputSavePath)) {
+        if (!request.dryRun && !request.outputSavePath.empty() && std::filesystem::exists(request.outputSavePath)) {
             throw std::runtime_error("Output save path already exists; refusing to overwrite.");
         }
-        if (std::filesystem::exists(request.outputReportPath)) {
+        if (!request.outputReportPath.empty() && std::filesystem::exists(request.outputReportPath)) {
             throw std::runtime_error("Output report path already exists; refusing to overwrite.");
         }
     }

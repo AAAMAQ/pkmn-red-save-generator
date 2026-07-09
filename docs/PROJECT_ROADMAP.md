@@ -72,7 +72,12 @@
 - hidden items
 - hidden coins
 - visited towns and supported world-state values
-- status: next; non-baseline location support remains disabled until full map-runtime serialization is implemented and emulator-proven
+- status: implemented, Save Genie reparsed, semantic-compared, emulator-loaded, gameplay-tested, save-again reparsed, and validated for the Red's-house safe-location profile
+- emulator validation confirmed normal Continue/load, movement, menus, travel to a Pokemon Center, Hall of Fame viewing with 18 records, Box 11 deposit, Rattata capture, normal save-again, and no corruption
+- post-save analysis confirmed valid main, Bank 2, Bank 3, and all 12 per-box checksums
+- post-save analysis confirmed Daycare, Hall of Fame, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named event flags, and scripts survived unchanged
+- expected gameplay drift included Pokemon Center location, playtime increase, party/storage changes from deposit and capture, and dirty current-box cache state
+- non-baseline location support remains disabled until full map-runtime serialization is implemented and emulator-proven
 
 ## Milestone 7: Full Semantic Comparison
 

@@ -104,9 +104,9 @@
 - Decision: `decoded.pcStorage` plus `decoded.currentBoxCache.selectedBoxNumber` define storage output, and the current-box cache is rewritten from the selected permanent box
 - Reason: this prevents stale or dummy cache bytes from surviving in generated output
 
-### D-021: Canonicalize boxed and daycare stored level from experience
+### D-021: Canonicalize boxed storage level from experience when oracle decode is implausible
 
-- Decision: boxed and daycare stored `level` are currently derived from species growth rate plus experience during generation
+- Decision: boxed storage `level` may be treated as a permitted canonical difference when Save Genie reports implausible source values
 - Reason: the current Save Genie boxed-level decode is not yet trustworthy for every real fixture record, while `experience` remains stable and semantically authoritative
 
 ### D-022: Treat emulator load-time corruption as authoritative blocker
@@ -145,3 +145,30 @@
 
 - Decision: Milestone 5 PC storage generation is accepted as complete after the final emulator-controlled post-withdrawal save reparsed with valid main, Bank 2, Bank 3, and per-box checksums
 - Reason: the final artifact proved current Box 12 cache behavior, deposited `PEGGY` in permanent Box 11, withdrawn fainted `RED` in the party, no observed storage corruption, and successful game-triggered plus normal save flows
+
+### D-029: Keep Milestone 6 Red's-house only while enabling extended-state writes
+
+- Decision: Milestone 6 writes Daycare, Hall of Fame, complete named missables, complete named scripts, named event/story/trainer/static flags, hidden objects, visited towns, and the narrow Red's-house runtime subset, but still rejects raw non-baseline locations
+- Reason: this expands semantic coverage without reintroducing the Viridian Pokemon Center load-corruption path; emulator testing remains required before declaring Milestone 6 complete
+
+### D-030: Write Daycare's trailing level byte from semantic input
+
+- Decision: the Daycare deposited-mon boxed substructure level is derived from experience, while the Daycare-specific trailing level byte is written from the semantic deposited level
+- Reason: Save Genie coverage and tests show the Daycare range extends through `0x2D2C`, so the generator must not omit or template-inherit the extra level byte
+
+## 2026-07-09
+
+### D-031: Close Milestone 6 for the Red's-house safe-location profile
+
+- Decision: accept Milestone 6 extended gameplay-state generation as complete for the emulator-validated Red's-house profile
+- Reason: the generated extended-state save passed Save Genie reparse, field-aware comparison, physical-image isolation, determinism, emulator load, movement/menu checks, travel, Hall of Fame viewing, Box 11 deposit, Rattata capture, save-again, post-save reparse, and checksum validation
+
+### D-032: Treat dirty selected-box cache as valid post-gameplay state only
+
+- Decision: generated saves must synchronize the selected permanent box and current-box cache, but validation of emulator-modified saves may accept a dirty current-box cache when the selected-box dirty flag is set
+- Reason: the Milestone 6 post-save artifact showed `PEGGY` / `PIDGEY` in the Box 11 current-box cache while permanent Box 11 remained empty, with all per-box and bank checksums valid; this is coherent Gen I behavior after deposit without box switching
+
+### D-033: Record trainer ID as numeric 257
+
+- Decision: the Milestone 6 fixture's authoritative trainer ID is decimal `257` (`0x0101`), displayed by the game as a five-digit value
+- Reason: generated candidate, post-save Save Genie reparse, trainer record, and caught Rattata OT ID all decode as `257`; any conflicting visual note is treated as an observation/transcription discrepancy rather than a generator mismatch

@@ -92,11 +92,17 @@ Therefore:
 
 - permanent boxes are written from `decoded.pcStorage`
 - current-box cache is rewritten from the selected permanent box, not copied from input cache bytes
-- boxed and daycare stored levels are canonicalized from species growth plus experience because the current Save Genie boxed-level oracle is not yet reliable for every fixture record
+- generated output requires current-box cache and selected permanent box byte equality; emulator-modified saves may later carry a dirty cache that differs from the permanent selected box after deposit/withdraw flows
+- boxed storage levels may still produce permitted canonical differences when the current Save Genie boxed-level oracle reports implausible values
+- Daycare writes the boxed substructure level from species growth plus experience and writes the Daycare-specific trailing level byte from semantic input
 - named event-state is merged from `events`, `trainerBattles`, `staticBattles`, and `storyProgress`; conflicting flag claims fail generation
+- named event, missable, and script ranges are cleared before semantic values are written so stale template bits cannot leak into owned Milestone 6 ranges
+- unnamed event bits are canonicalized to clear until a named semantic authority exists
+- named story-evidence/world bits are written from `decoded.worldState.storyEvidence`
 - supported locations are fail-closed to the emulator-validated Red's-house baseline
 - Viridian City Pokemon Center and other non-baseline maps are disabled until full map-runtime bytes have semantic authority, synchronization rules, and emulator proof
 - generation reports include byte provenance for declared write ranges and generation fails on undeclared non-template overlaps
+- dry-run and validation CLI workflows use the same generator pipeline so canonicalization, checksum, range, determinism, and physical-image-isolation behavior can be inspected without writing a final `.sav`
 
 ## Output-Length Policy
 

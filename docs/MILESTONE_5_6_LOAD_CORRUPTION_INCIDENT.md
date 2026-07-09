@@ -2,7 +2,7 @@
 
 Date: 2026-07-07
 
-Status: root cause identified and corrected for Milestone 5; Milestone 5 storage validation is complete, and Milestone 6 remains incomplete.
+Status: root cause identified and corrected. Milestone 5 storage validation is complete, and Milestone 6 extended-state validation is complete for the Red's-house safe-location profile. Non-baseline locations remain fail-closed until their full runtime contract is implemented and emulator-proven.
 
 ## Incident Summary
 
@@ -265,7 +265,7 @@ Storage gate after base load:
 - compare party and all boxes
 - validate current-box cache and bank checksums
 
-Milestone 6 remains paused until Milestone 5 storage passes this gate.
+Milestone 6 remained paused until Milestone 5 storage passed this gate. It later resumed under the Red's-house fail-closed policy and completed validation for that safe-location profile.
 
 ## Corrected Diagnostic Base-Load Result
 
@@ -392,4 +392,41 @@ Save Genie reparse and independent checksum verification confirmed:
 
 Milestone 5 storage validation is complete. The original load-time corruption root cause remains resolved by the Red's-house fail-closed location policy, and PC storage generation now has emulator interaction evidence covering load, Bill's PC access, deposit, box switching, game-triggered save, withdrawal, normal save, post-save reparse, cache behavior, and storage checksum validation.
 
-Milestone 6 remains incomplete and must not be claimed complete until Daycare, Hall of Fame, extended event/world state, safe-location handling, and emulator save-again validation pass.
+Milestone 6 automated/private-fixture validation resumed under the Red's-house fail-closed policy. The generated extended-state validation save reparsed through Save Genie and passed field-aware semantic comparison with only permitted boxed-level canonical differences.
+
+## Final Milestone 6 Extended-State Result
+
+The final Milestone 6 emulator validation passed for the Red's-house safe-location profile.
+
+Confirmed emulator evidence:
+
+- Continue appeared normally
+- selecting Continue loaded without graphical corruption, malformed text, crashes, freezes, or obvious runtime failures
+- initial location was Red's house second floor
+- movement, menus, and general gameplay behaved normally
+- travel to a Pokemon Center completed without corruption
+- Hall of Fame viewing confirmed 18 completed entries
+- `PEGGY` / `PIDGEY` was deposited into Box 11
+- a wild `RATTATA` was caught and added to the party
+- a normal in-game save completed successfully
+
+The post-save artifact was preserved privately and parsed through Save Genie:
+
+- size `32768`
+- SHA-256 `1291414d5503e5c072f8c0278ac9efceb6e6d43bbf91ebb52a89d38095282be4`
+- main checksum valid
+- Bank 2 all-box checksum valid
+- Bank 3 all-box checksum valid
+- all 12 per-box checksums valid
+- trainer `GOON`
+- rival `KILLUA`
+- numeric trainer ID `257`, raw `0x0101`; in-game display is the five-digit form `00257`
+- party slot 6 contains caught `RATTATA` with OT `GOON` and OT ID `257`
+- selected box `11`, raw current-box byte `0x8A`, dirty flag set
+- current-box cache contains deposited `PEGGY` / `PIDGEY`
+- permanent Box 11 remains empty, which is coherent dirty-cache behavior after deposit without box switching
+- Hall of Fame retained exactly 18 entries with identical ordering and contents compared with the generated candidate
+- Daycare, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named events, and scripts matched the generated candidate exactly
+- `worldState` differences were limited to expected runtime/map drift from travel to Viridian City Pokemon Center
+
+This closes the original incident for Milestones 5 and 6 while preserving Viridian Pokemon Center as a regression case. The generator must continue rejecting non-baseline locations until full map-runtime serialization and emulator validation exist.

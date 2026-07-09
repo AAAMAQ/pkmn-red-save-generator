@@ -124,6 +124,7 @@ Deferred cleanup:
 - `SemanticComparator`
 - `PartyComparisonRules`
 - `GenerationReport`
+- CLI validation workflows for input inspection, dry-run generation, checksum validation, determinism, physical-image isolation, and write-range provenance
 
 ## Data Flow
 
@@ -156,7 +157,6 @@ target .red.json
   - regenerated main checksum
   - explicit Policy A preservation of untouched permanent storage banks until storage serialization is implemented
 - Milestone 3 expands the active generator to own:
-- Milestone 3 expands the active generator to own:
   - badges and synchronized badge mirror
   - Pokédex owned and seen bitfields
   - bag inventory and PC item inventory
@@ -167,14 +167,19 @@ target .red.json
   - party count, species list, terminator, OT names, nicknames, and all six party records
   - field-aware party comparison down to indexed move, PP, DV, Stat Experience, and text paths
   - deterministic party generation that remains independent of target `physicalImage`
-- Milestone 5 and the current paused Milestone 6 implementation experimentally own:
+- Milestone 5 and Milestone 6 own:
   - all 12 permanent PC boxes
   - selected-box byte and current-box cache synchronization
   - per-box and bank-level storage checksums
   - daycare occupancy and stored Pokemon
+  - Daycare-specific deposited level byte
   - Hall of Fame record count and entries
   - named event, trainer-battle, static-battle, and story-progress flags
+  - named story-evidence/world bits
   - persistent script bytes, missable objects, hidden items, hidden coins, and visited towns
+- Milestone 6 extended-state generation clears owned event, missable, and script ranges before writing target semantics to prevent template-state leakage.
+- Milestone 6 has passed emulator validation for the Red's-house safe-location profile, including load, travel, Hall of Fame viewing, Box 11 deposit, Rattata capture, save-again, Save Genie reparse, and expected-drift analysis.
+- Generated saves must synchronize the selected permanent box and current-box cache. Emulator-modified saves may legitimately have the selected box dirty flag set and a current-box cache that differs from the permanent selected box until the game flushes the active box during box switching.
 - The largest remaining architecture gap is location safety:
   - the validator now accepts only the emulator-validated Red's-house baseline
   - Viridian City Pokemon Center was disabled after immediate post-Continue corruption
