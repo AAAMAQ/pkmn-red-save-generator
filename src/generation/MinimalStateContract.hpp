@@ -10,6 +10,7 @@
 
 #include "../encoding/Gen1Layout.hpp"
 #include "../model/RedSemanticState.hpp"
+#include "ExtendedWorldSerializer.hpp"
 #include "HallOfFameSerializer.hpp"
 #include "PartyValidator.hpp"
 #include "StorageValidator.hpp"
@@ -62,6 +63,7 @@ public:
         StorageValidator::ValidateOrThrow(target.storage);
         StorageValidator::ValidateDaycareOrThrow(target.daycare);
         HallOfFameSerializer::ValidateOrThrow(target.hallOfFame);
+        ExtendedWorldSerializer::ValidateOrThrow(target);
 
         RequireLength(
             target.pokedex.owned, 151, "decoded.pokedex.species owned");
@@ -96,7 +98,7 @@ public:
         contract.warnings.push_back(
             "The current location validator fails closed to the emulator-validated Red's house baseline. Non-baseline locations are paused after the Milestone 5-6 load-time corruption incident.");
         contract.warnings.push_back(
-            "The generator currently owns trainer/core fields, party, permanent storage, selected-box cache, badges, Pokedex, bag inventory, PC item inventory, Daycare, Hall of Fame, and the conservative named event/world subset.");
+            "The generator currently owns trainer/core fields, party, permanent storage, selected-box cache, badges, Pokedex, bag inventory, PC item inventory, Daycare, Hall of Fame, named event/story/trainer/static flags, scripts, missables, hidden objects, visited towns, and the Red's-house world-evidence subset.");
         return contract;
     }
 

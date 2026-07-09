@@ -50,6 +50,14 @@ struct CoreState {
     bool isBattle = false;
     bool isTrainerBattle = false;
     bool countPlaytime = false;
+    bool gotOldRod = false;
+    bool gotGoodRod = false;
+    bool gotSuperRod = false;
+    bool satisfiedSaffronGuards = false;
+    bool gotLapras = false;
+    bool everHealedPokemon = false;
+    bool gotStarter = false;
+    bool defeatedLoreleiRoomState = false;
     bool safariGameOver = false;
     std::uint8_t safariBallCount = 0;
     std::uint16_t safariSteps = 0;
@@ -364,6 +372,17 @@ public:
                 decoded.at("runtimeState").at("flags").at("isTrainerBattle").get<bool>();
             state.core.countPlaytime =
                 decoded.at("runtimeState").at("flags").at("countPlaytime").get<bool>();
+            const nlohmann::json& storyEvidence = decoded.at("worldState").at("storyEvidence");
+            state.core.gotOldRod = storyEvidence.at("gotOldRod").get<bool>();
+            state.core.gotGoodRod = storyEvidence.at("gotGoodRod").get<bool>();
+            state.core.gotSuperRod = storyEvidence.at("gotSuperRod").get<bool>();
+            state.core.satisfiedSaffronGuards =
+                storyEvidence.at("satisfiedSaffronGuards").get<bool>();
+            state.core.gotLapras = storyEvidence.at("gotLapras").get<bool>();
+            state.core.everHealedPokemon = storyEvidence.at("everHealedPokemon").get<bool>();
+            state.core.gotStarter = storyEvidence.at("gotStarter").get<bool>();
+            state.core.defeatedLoreleiRoomState =
+                storyEvidence.at("defeatedLoreleiRoomState").get<bool>();
             state.core.money =
                 static_cast<std::uint32_t>(decoded.at("moneyAndCoins").at("money").at("value").get<int>());
             state.core.coins =

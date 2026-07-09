@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -42,7 +43,7 @@ public:
             encoding::Gen1Layout::DaycareOTNameOff,
             encoding::Gen1Layout::Gen1NameLen,
             mon.originalTrainerName);
-        WriteBoxMonStruct(working.bytes, encoding::Gen1Layout::DaycareBoxMonOff, mon);
+        WriteDaycareMonStruct(working.bytes, encoding::Gen1Layout::DaycareBoxMonOff, mon);
 
         MarkRange(working.report,
                   encoding::Gen1Layout::DaycareInUseOff,
@@ -53,21 +54,21 @@ public:
     }
 
 private:
-    static void WriteBoxMonStruct(std::vector<std::uint8_t>& bytes,
-                                  std::size_t base,
-                                  const model::StoredPokemonState& mon) {
+    static void WriteDaycareMonStruct(std::vector<std::uint8_t>& bytes,
+                                      std::size_t base,
+                                      const model::StoredPokemonState& mon) {
         const auto* speciesData = pokemon::FindSpeciesData(mon.speciesId);
         if (speciesData == nullptr) {
             throw std::runtime_error("Daycare serializer encountered an unsupported species id.");
         }
-        const std::uint8_t storedLevel =
+        const std::uint8_t derivedBoxLevel =
             PokemonStatCalculator::LevelFromExperience(*speciesData, mon.experience);
         encoding::PrimitiveWriter::WriteU8(
             bytes, base + encoding::Gen1Layout::BoxMonSpeciesRel, mon.speciesId);
         encoding::PrimitiveWriter::WriteU16BigEndian(
             bytes, base + encoding::Gen1Layout::BoxMonCurrentHpRel, mon.currentHp);
         encoding::PrimitiveWriter::WriteU8(
-            bytes, base + encoding::Gen1Layout::BoxMonLevelRel, storedLevel);
+            bytes, base + encoding::Gen1Layout::BoxMonLevelRel, derivedBoxLevel);
         encoding::PrimitiveWriter::WriteU8(
             bytes, base + encoding::Gen1Layout::BoxMonStatusRel, mon.statusRaw);
         encoding::PrimitiveWriter::WriteU8(
@@ -107,6 +108,8 @@ private:
             (mon.dvs.special & 0x0FU));
         encoding::PrimitiveWriter::WriteU16BigEndian(
             bytes, base + encoding::Gen1Layout::BoxMonDvWordRel, packedDvs);
+        encoding::PrimitiveWriter::WriteU8(
+            bytes, base + encoding::Gen1Layout::DaycareStoredLevelRel, mon.level);
     }
 
     static void ZeroRange(std::vector<std::uint8_t>& bytes,

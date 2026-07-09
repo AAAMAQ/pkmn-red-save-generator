@@ -97,7 +97,8 @@ struct Gen1Layout {
     static constexpr std::size_t DaycareNicknameOff = 0x2CF5;
     static constexpr std::size_t DaycareOTNameOff = 0x2D00;
     static constexpr std::size_t DaycareBoxMonOff = 0x2D0B;
-    static constexpr std::size_t DaycareLen = 0x38;
+    static constexpr std::size_t DaycareStoredLevelRel = 0x21;
+    static constexpr std::size_t DaycareLen = 0x39;
     static constexpr std::size_t PartyBase = 0x2F2C;
     static constexpr std::size_t PartyBlockLen = 0x0194;
     static constexpr std::size_t PartyCountOff = PartyBase + 0x00;

@@ -46,6 +46,9 @@ public:
             throw std::runtime_error("decoded.daycare.inUse requires decoded.daycare.pokemon.");
         }
         ValidateStoredPokemon(*daycare.pokemon, "decoded.daycare.pokemon");
+        if (daycare.pokemon->level == 0U || daycare.pokemon->level > 100U) {
+            throw std::runtime_error("decoded.daycare.pokemon: level must be in 1..100.");
+        }
     }
 
 private:

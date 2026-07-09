@@ -55,7 +55,7 @@ public:
         result.warnings = result.baseline.warnings;
         if (result.baseline.permanentBoxesSuspicious) {
             result.warnings.push_back(
-                "Working-copy normalization or proof of harmlessness is still required before Milestone 2 acceptance.");
+                "Template storage is suspicious; generated outputs must own or normalize storage rather than inherit these bytes.");
         }
         result.accepted = result.errors.empty();
         return result;

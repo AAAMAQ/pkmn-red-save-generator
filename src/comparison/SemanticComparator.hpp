@@ -20,13 +20,13 @@ struct ComparisonOptions {
     bool compareStorage = true;
     bool compareDaycare = true;
     bool compareHallOfFame = true;
-    bool compareWorldSubset = false;
-    bool compareEvents = false;
-    bool compareTrainerBattles = false;
-    bool compareStaticBattles = false;
-    bool compareStoryProgress = false;
-    bool compareScripts = false;
-    bool compareMissableObjects = false;
+    bool compareWorldSubset = true;
+    bool compareEvents = true;
+    bool compareTrainerBattles = true;
+    bool compareStaticBattles = true;
+    bool compareStoryProgress = true;
+    bool compareScripts = true;
+    bool compareMissableObjects = true;
 };
 
 class SemanticComparator {
@@ -466,6 +466,121 @@ private:
                "core.y",
                std::to_string(expected.y),
                std::to_string(actual.y));
+        add_if(expected.previousMapId != actual.previousMapId,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.previousMapId",
+               std::to_string(expected.previousMapId),
+               std::to_string(actual.previousMapId));
+        add_if(expected.xBlockCoord != actual.xBlockCoord,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.xBlockCoord",
+               std::to_string(expected.xBlockCoord),
+               std::to_string(actual.xBlockCoord));
+        add_if(expected.yBlockCoord != actual.yBlockCoord,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.yBlockCoord",
+               std::to_string(expected.yBlockCoord),
+               std::to_string(actual.yBlockCoord));
+        add_if(expected.movementMode != actual.movementMode,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.movementMode",
+               expected.movementMode,
+               actual.movementMode);
+        add_if(expected.playerMoveDirection != actual.playerMoveDirection,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.playerMoveDirection",
+               expected.playerMoveDirection,
+               actual.playerMoveDirection);
+        add_if(expected.playerCurrentDirection != actual.playerCurrentDirection,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.playerCurrentDirection",
+               expected.playerCurrentDirection,
+               actual.playerCurrentDirection);
+        add_if(expected.strengthOutsideBattle != actual.strengthOutsideBattle,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.strengthOutsideBattle",
+               expected.strengthOutsideBattle ? "true" : "false",
+               actual.strengthOutsideBattle ? "true" : "false");
+        add_if(expected.surfingAllowed != actual.surfingAllowed,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.surfingAllowed",
+               expected.surfingAllowed ? "true" : "false",
+               actual.surfingAllowed ? "true" : "false");
+        add_if(expected.flyOutOfBattle != actual.flyOutOfBattle,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.flyOutOfBattle",
+               expected.flyOutOfBattle ? "true" : "false",
+               actual.flyOutOfBattle ? "true" : "false");
+        add_if(expected.isBattle != actual.isBattle,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.isBattle",
+               expected.isBattle ? "true" : "false",
+               actual.isBattle ? "true" : "false");
+        add_if(expected.isTrainerBattle != actual.isTrainerBattle,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.isTrainerBattle",
+               expected.isTrainerBattle ? "true" : "false",
+               actual.isTrainerBattle ? "true" : "false");
+        add_if(expected.countPlaytime != actual.countPlaytime,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.countPlaytime",
+               expected.countPlaytime ? "true" : "false",
+               actual.countPlaytime ? "true" : "false");
+        add_if(expected.gotOldRod != actual.gotOldRod,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.gotOldRod",
+               expected.gotOldRod ? "true" : "false",
+               actual.gotOldRod ? "true" : "false");
+        add_if(expected.gotGoodRod != actual.gotGoodRod,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.gotGoodRod",
+               expected.gotGoodRod ? "true" : "false",
+               actual.gotGoodRod ? "true" : "false");
+        add_if(expected.gotSuperRod != actual.gotSuperRod,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.gotSuperRod",
+               expected.gotSuperRod ? "true" : "false",
+               actual.gotSuperRod ? "true" : "false");
+        add_if(expected.satisfiedSaffronGuards != actual.satisfiedSaffronGuards,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.satisfiedSaffronGuards",
+               expected.satisfiedSaffronGuards ? "true" : "false",
+               actual.satisfiedSaffronGuards ? "true" : "false");
+        add_if(expected.gotLapras != actual.gotLapras,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.gotLapras",
+               expected.gotLapras ? "true" : "false",
+               actual.gotLapras ? "true" : "false");
+        add_if(expected.everHealedPokemon != actual.everHealedPokemon,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.everHealedPokemon",
+               expected.everHealedPokemon ? "true" : "false",
+               actual.everHealedPokemon ? "true" : "false");
+        add_if(expected.gotStarter != actual.gotStarter,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.gotStarter",
+               expected.gotStarter ? "true" : "false",
+               actual.gotStarter ? "true" : "false");
+        add_if(expected.defeatedLoreleiRoomState != actual.defeatedLoreleiRoomState,
+               DifferenceCategory::RequiredExactMismatch,
+               "worldState.storyEvidence.defeatedLoreleiRoomState",
+               expected.defeatedLoreleiRoomState ? "true" : "false",
+               actual.defeatedLoreleiRoomState ? "true" : "false");
+        add_if(expected.safariGameOver != actual.safariGameOver,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.safariGameOver",
+               expected.safariGameOver ? "true" : "false",
+               actual.safariGameOver ? "true" : "false");
+        add_if(expected.safariBallCount != actual.safariBallCount,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.safariBallCount",
+               std::to_string(expected.safariBallCount),
+               std::to_string(actual.safariBallCount));
+        add_if(expected.safariSteps != actual.safariSteps,
+               DifferenceCategory::RequiredExactMismatch,
+               "core.safariSteps",
+               std::to_string(expected.safariSteps),
+               std::to_string(actual.safariSteps));
         add_if(expected.playHours != actual.playHours,
                DifferenceCategory::RequiredExactMismatch,
                "core.playHours",

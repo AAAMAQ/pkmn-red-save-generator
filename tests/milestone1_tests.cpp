@@ -18,6 +18,9 @@
 #include "../src/encoding/PrimitiveWriter.hpp"
 #include "../src/generation/MinimalSaveGenerator.hpp"
 #include "../src/generation/MinimalStateContract.hpp"
+#include "../src/generation/DaycareSerializer.hpp"
+#include "../src/generation/ExtendedWorldSerializer.hpp"
+#include "../src/generation/HallOfFameSerializer.hpp"
 #include "../src/generation/PartySerializer.hpp"
 #include "../src/generation/PartyValidator.hpp"
 #include "../src/generation/PokemonStatCalculator.hpp"
@@ -735,6 +738,125 @@ TEST_CASE("Storage layout boundaries do not overlap adjacent main-save or checks
     CHECK(Gen1Layout::BoxNicknamesRel +
               (Gen1Layout::BoxMaxMons * Gen1Layout::Gen1NameLen) ==
           Gen1Layout::BoxBlockSize);
+    CHECK(Gen1Layout::DaycareBoxMonOff + Gen1Layout::DaycareStoredLevelRel ==
+          Gen1Layout::DaycareInUseOff + Gen1Layout::DaycareLen - 1U);
+}
+
+TEST_CASE("Milestone 6 Daycare serializer writes the deposited mon and extra level byte") {
+    using pkmn::savegen::encoding::Gen1Layout;
+
+    pkmn::savegen::generation::WorkingSaveBuffer working;
+    working.bytes.assign(Gen1Layout::ExpectedSaveSize, 0xFF);
+
+    pkmn::savegen::model::DaycareState daycare;
+    daycare.inUse = true;
+    daycare.pokemon = ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"));
+
+    CHECK_NOTHROW(pkmn::savegen::generation::StorageValidator::ValidateDaycareOrThrow(daycare));
+    pkmn::savegen::generation::DaycareSerializer::WriteDaycare(working, daycare);
+
+    CHECK(working.bytes[Gen1Layout::DaycareInUseOff] == 1);
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              working.bytes, Gen1Layout::DaycareNicknameOff, Gen1Layout::Gen1NameLen) == "BIRD");
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              working.bytes, Gen1Layout::DaycareOTNameOff, Gen1Layout::Gen1NameLen) == "MARIO");
+    CHECK(working.bytes[Gen1Layout::DaycareBoxMonOff + Gen1Layout::BoxMonSpeciesRel] == 36);
+    CHECK(working.bytes[Gen1Layout::DaycareBoxMonOff + Gen1Layout::BoxMonLevelRel] == 3);
+    CHECK(working.bytes[Gen1Layout::DaycareBoxMonOff + Gen1Layout::DaycareStoredLevelRel] == 3);
+
+    pkmn::savegen::generation::WorkingSaveBuffer empty;
+    empty.bytes.assign(Gen1Layout::ExpectedSaveSize, 0xFF);
+    pkmn::savegen::generation::DaycareSerializer::WriteDaycare(
+        empty, pkmn::savegen::model::DaycareState{});
+    for (std::size_t offset = Gen1Layout::DaycareInUseOff;
+         offset < Gen1Layout::DaycareInUseOff + Gen1Layout::DaycareLen;
+         ++offset) {
+        CHECK(empty.bytes[offset] == 0);
+    }
+}
+
+TEST_CASE("Milestone 6 Hall of Fame serializer writes records and clears unused slots") {
+    using pkmn::savegen::encoding::Gen1Layout;
+
+    pkmn::savegen::generation::WorkingSaveBuffer working;
+    working.bytes.assign(Gen1Layout::ExpectedSaveSize, 0xFF);
+
+    pkmn::savegen::model::HallOfFameState hall;
+    hall.entryCount = 1;
+    hall.entries.push_back({
+        1,
+        {{
+            1,
+            36,
+            "PIDGEY",
+            16,
+            5,
+            "BIRD"
+        }}
+    });
+
+    CHECK_NOTHROW(pkmn::savegen::generation::HallOfFameSerializer::ValidateOrThrow(hall));
+    pkmn::savegen::generation::HallOfFameSerializer::WriteHallOfFame(working, hall);
+
+    CHECK(working.bytes[Gen1Layout::HallOfFameRecordCountOff] == 1);
+    CHECK(working.bytes[Gen1Layout::HallOfFameOff] == 36);
+    CHECK(working.bytes[Gen1Layout::HallOfFameOff + 1U] == 5);
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              working.bytes, Gen1Layout::HallOfFameOff + 2U, Gen1Layout::Gen1NameLen) == "BIRD");
+    CHECK(working.bytes[Gen1Layout::HallOfFameOff + 0x10U] == 0);
+}
+
+TEST_CASE("Milestone 6 extended-world serializer owns missables event flags and scripts") {
+    using pkmn::savegen::encoding::BitfieldWriter;
+    using pkmn::savegen::encoding::Gen1Layout;
+
+    pkmn::savegen::model::RedSemanticState semantic;
+    semantic.core.movementMode = "Walking";
+    semantic.core.playerMoveDirection = "None";
+    semantic.core.playerCurrentDirection = "None";
+    semantic.core.gotOldRod = true;
+    semantic.core.gotGoodRod = true;
+    semantic.core.gotSuperRod = true;
+    semantic.core.satisfiedSaffronGuards = true;
+    semantic.core.gotLapras = true;
+    semantic.core.everHealedPokemon = true;
+    semantic.core.gotStarter = true;
+    semantic.core.defeatedLoreleiRoomState = true;
+    for (int index = 0; index < Gen1Layout::MissableObjectsUsedBits; ++index) {
+        semantic.missableObjects.push_back({index, "MISSABLE", "TEST", index == 5});
+    }
+    for (int index = 0; index < Gen1Layout::CurrentScriptCount; ++index) {
+        semantic.scripts.push_back({index, index, 1, index == 2 ? 7 : 0, "SCRIPT"});
+    }
+    semantic.events.push_back({119, "EVENT_BEAT_BROCK", "", true, "story", "", 0});
+    semantic.events.push_back({120, "EVENT_BEAT_MISTY", "", false, "story", "", 0});
+    semantic.trainerBattles.push_back({1378, "EVENT_BEAT_VIRIDIAN_FOREST_TRAINER_0", "", true, "", "", 1});
+    semantic.staticBattles.push_back({2522, "EVENT_BEAT_ARTICUNO", "", true, "", "", 0});
+    semantic.storyProgress.push_back({37, "EVENT_GOT_POKEDEX", "", true, "", "", 0});
+
+    CHECK_NOTHROW(pkmn::savegen::generation::ExtendedWorldSerializer::ValidateOrThrow(semantic));
+
+    pkmn::savegen::generation::WorkingSaveBuffer working;
+    working.bytes.assign(Gen1Layout::ExpectedSaveSize, 0xFF);
+    pkmn::savegen::generation::ExtendedWorldSerializer::WritePersistentWorldState(working, semantic);
+
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::MissableObjectsOff, 5));
+    CHECK_FALSE(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::MissableObjectsOff, 0));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::EventFlagsOff + (119U / 8U), 119U % 8U));
+    CHECK_FALSE(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::EventFlagsOff, 0));
+    CHECK(working.bytes[Gen1Layout::CurrentScriptsOff + 2U] == 7);
+    CHECK(working.bytes[Gen1Layout::CurrentScriptsOff + 120U] == 0);
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags1Off, 3));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags1Off, 4));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags1Off, 5));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags1Off, 6));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags2Off, 0));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags2Off, 2));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::WorldFlags2Off, 3));
+    CHECK(BitfieldWriter::ReadBit(working.bytes, Gen1Layout::EliteFlagsOff, 1));
+
+    semantic.scripts[3].relativeOffset = 2;
+    CHECK_THROWS(pkmn::savegen::generation::ExtendedWorldSerializer::ValidateOrThrow(semantic));
 }
 
 TEST_CASE("Party comparison reports precise indexed field paths") {
