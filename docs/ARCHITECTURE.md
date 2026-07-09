@@ -178,10 +178,16 @@ target .red.json
   - named story-evidence/world bits
   - persistent script bytes, missable objects, hidden items, hidden coins, and visited towns
 - Milestone 6 extended-state generation clears owned event, missable, and script ranges before writing target semantics to prevent template-state leakage.
-- Milestone 6 has passed emulator validation for the Red's-house safe-location profile, including load, travel, Hall of Fame viewing, Box 11 deposit, Rattata capture, save-again, Save Genie reparse, and expected-drift analysis.
+- Milestone 6 has passed emulator validation for the Red's-house safe-location profile, including load, travel, Hall of Fame viewing, save-again, Save Genie reparse, and expected-drift analysis.
 - Generated saves must synchronize the selected permanent box and current-box cache. Emulator-modified saves may legitimately have the selected box dirty flag set and a current-box cache that differs from the permanent selected box until the game flushes the active box during box switching.
 - The largest remaining architecture gap is location safety:
   - the validator now accepts only the emulator-validated Red's-house baseline
   - Viridian City Pokemon Center was disabled after immediate post-Continue corruption
   - broader map coverage requires a complete map-runtime cluster serializer, duplicate synchronization, and emulator evidence before re-enablement
 - Generation reports now include byte provenance for declared ranges and reject undeclared non-template overlaps before writing output reports.
+- The combined Final Release Milestone adds release-facing scaffolding rather than redesigning generator internals:
+  - shared generator version constant
+  - public synthetic samples
+  - CI checks for public workflows
+  - release checklist and validation matrix
+  - final emulator matrix as an explicit release gate

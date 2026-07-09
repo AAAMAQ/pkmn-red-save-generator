@@ -146,3 +146,20 @@ Release-grade acceptance requires:
 For Milestone 5 and Milestone 6, Save Genie reparse plus semantic comparison is explicitly insufficient without emulator base-load, feature interaction, save-again, and post-save reparse evidence.
 
 Milestone 6 satisfies this acceptance standard for the Red's-house safe-location profile. Broader safe-location support remains outside the completed equivalence surface.
+
+## Final Release Equivalence Categories
+
+The combined Final Release Milestone uses these comparison categories:
+
+- exact match
+- normalized match
+- derived match
+- synchronized mirror match
+- permitted canonical difference
+- expected gameplay drift
+- unsupported or deferred
+- unexpected mismatch
+
+Unsupported non-empty source state must be surfaced clearly. A comparison must not pass merely because unsupported fields were ignored.
+
+Public CI proves the generator's own deterministic and checksum guarantees with synthetic samples. Private Save Genie oracle validation and emulator save-again validation remain required before release tagging.

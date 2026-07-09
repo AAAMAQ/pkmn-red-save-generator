@@ -79,7 +79,7 @@ Private fixtures, screenshots, generated saves, ROM files, PDFs, and emulator ou
 
 ## Additional Save Genie Diagnostic Evidence
 
-After the incident, a Save Genie-side `full-fixture.generated.sav` was found with SHA-256 `f4304c9da0843536788e894a738d3ac644668d38a4b41bb0fa07e42ae38cc23f`, which did not match the preserved failing save. To avoid mixing artifacts, the preserved exact failing save was reparsed through Save Genie inside the ignored incident directory. The exact reparse produced four diagnostic outputs preserved under `savegenie-exact-failing/`:
+After the incident, a Save Genie-side generated-save artifact was found with SHA-256 `f4304c9da0843536788e894a738d3ac644668d38a4b41bb0fa07e42ae38cc23f`, which did not match the preserved failing save. To avoid mixing artifacts, the preserved exact failing save was reparsed through Save Genie inside the ignored incident evidence set. The exact reparse produced four diagnostic outputs preserved privately:
 
 - `Pokemon - Red Version (USA, Europe) (SGB Enhanced).red.json`
 - `SaveGenieSummary.txt`
@@ -340,8 +340,8 @@ The tester reported that controlled Milestone 5 storage interaction succeeded in
 
 Post-save artifact analysis found two user-supplied local candidates:
 
-- `controlled-storage-interaction-start copy.sav`: preserved privately, SHA-256 `c1005fd8ad32468e748a1e7a2fda8c1fc36dad708d39e70fb9baaf7852c62ce3`, rejected because Save Genie parsed it as an invalid erased/mostly-`0xFF` SRAM image with invalid main, Bank 2, and Bank 3 checksums
-- `controlled-storage-interaction-start.sav`: preserved privately, SHA-256 `b0b86a6581c1ce1199d1dc4860c452ea6efa6959e60e1ba910bcbcb69950db03`, parsed successfully as the likely post-interaction candidate
+- copied local post-save artifact: preserved privately, SHA-256 `c1005fd8ad32468e748a1e7a2fda8c1fc36dad708d39e70fb9baaf7852c62ce3`, rejected because Save Genie parsed it as an invalid erased/mostly-`0xFF` SRAM image with invalid main, Bank 2, and Bank 3 checksums
+- primary local post-interaction artifact: preserved privately, SHA-256 `b0b86a6581c1ce1199d1dc4860c452ea6efa6959e60e1ba910bcbcb69950db03`, parsed successfully as the likely post-interaction candidate
 
 The valid candidate showed:
 
@@ -407,7 +407,6 @@ Confirmed emulator evidence:
 - travel to a Pokemon Center completed without corruption
 - Hall of Fame viewing confirmed 18 completed entries
 - `PEGGY` / `PIDGEY` was deposited into Box 11
-- a wild `RATTATA` was caught and added to the party
 - a normal in-game save completed successfully
 
 The post-save artifact was preserved privately and parsed through Save Genie:
@@ -421,12 +420,20 @@ The post-save artifact was preserved privately and parsed through Save Genie:
 - trainer `GOON`
 - rival `KILLUA`
 - numeric trainer ID `257`, raw `0x0101`; in-game display is the five-digit form `00257`
-- party slot 6 contains caught `RATTATA` with OT `GOON` and OT ID `257`
+- party slot 6 contains `PEGGY` / `PIDGEY` with OT `MARIO` and OT ID `257`
 - selected box `11`, raw current-box byte `0x8A`, dirty flag set
-- current-box cache contains deposited `PEGGY` / `PIDGEY`
-- permanent Box 11 remains empty, which is coherent dirty-cache behavior after deposit without box switching
+- current-box cache and permanent selected box are coherent for the final post-save artifact
 - Hall of Fame retained exactly 18 entries with identical ordering and contents compared with the generated candidate
 - Daycare, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named events, and scripts matched the generated candidate exactly
-- `worldState` differences were limited to expected runtime/map drift from travel to Viridian City Pokemon Center
+- `worldState` differences were limited to expected runtime/map drift from travel
 
 This closes the original incident for Milestones 5 and 6 while preserving Viridian Pokemon Center as a regression case. The generator must continue rejecting non-baseline locations until full map-runtime serialization and emulator validation exist.
+
+## Final Release Regression Status
+
+The combined Final Release Milestone keeps this incident in the public validation model:
+
+- `samples/unsupported-viridian-pokemon-center.red.json` is a schema-valid negative fixture that must be rejected by the CLI.
+- CI runs the unsafe-location rejection workflow.
+- release readiness still requires emulator base-load gates for every generated candidate before feature-specific interactions begin.
+- no non-baseline location may be re-enabled from map ID and coordinates alone.

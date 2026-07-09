@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: CLI help and version
+        run: |
+          build/pkmn-red-save-generator --help
+          build/pkmn-red-save-generator --version
+
+      - name: Public sample generation
+        run: |
+          build/pkmn-red-save-generator validate samples/minimal.red.json
+          build/pkmn-red-save-generator validate samples/representative.red.json
+          build/pkmn-red-save-generator generate samples/minimal.red.json "$RUNNER_TEMP/minimal.sav" --report "$RUNNER_TEMP/minimal.report.json" --summary
+          build/pkmn-red-save-generator validate-save --input-save "$RUNNER_TEMP/minimal.sav"
+          build/pkmn-red-save-generator generate samples/representative.red.json "$RUNNER_TEMP/representative.sav" --report "$RUNNER_TEMP/representative.report.json" --summary
+          build/pkmn-red-save-generator validate-save --input-save "$RUNNER_TEMP/representative.sav"
+
+      - name: Determinism and physical-image isolation
+        run: |
+          build/pkmn-red-save-generator check-determinism --input samples/representative.red.json --work-dir "$RUNNER_TEMP/determinism"
+          build/pkmn-red-save-generator check-physical-image-isolation --input samples/representative.red.json --work-dir "$RUNNER_TEMP/physical-image"
+
+      - name: Unsafe location rejection
+        run: |
+          if build/pkmn-red-save-generator inspect samples/unsupported-viridian-pokemon-center.red.json; then
+            echo "unsafe Viridian Pokemon Center sample was unexpectedly accepted"
+            exit 1
+          fi
+
+      - name: Whitespace check
+        run: git diff --check
+
+      - name: Private path scan
+        run: |
+          ! git grep -nE '/Users/|/Desktop|/Documents|abdulqadir' -- . ':!.github/workflows/ci.yml'
+          ! git grep -nE 'personal rescources|personal resources|full-fixture|controlled-storage|milestone6-red-house|Pokemon\.red\.json|Screenshot 2026' -- . ':!.gitignore' ':!.github/workflows/ci.yml'

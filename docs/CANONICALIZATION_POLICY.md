@@ -103,6 +103,8 @@ Therefore:
 - Viridian City Pokemon Center and other non-baseline maps are disabled until full map-runtime bytes have semantic authority, synchronization rules, and emulator proof
 - generation reports include byte provenance for declared write ranges and generation fails on undeclared non-template overlaps
 - dry-run and validation CLI workflows use the same generator pipeline so canonicalization, checksum, range, determinism, and physical-image-isolation behavior can be inspected without writing a final `.sav`
+- public sample generation uses synthetic semantic examples derived from the committed dummy reference after removing `physicalImage`; these samples are validation aids, not private playthrough fixtures
+- release tagging requires emulator evidence that canonicalized outputs load, interact, save again, and reparse without unexpected semantic drift
 
 ## Output-Length Policy
 

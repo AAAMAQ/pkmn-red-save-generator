@@ -37,6 +37,7 @@
 #include "../src/template/CanonicalTemplateLoader.hpp"
 #include "../src/template/TemplateProfile.hpp"
 #include "../src/template/TemplateValidator.hpp"
+#include "../src/Version.hpp"
 
 namespace {
 
@@ -62,6 +63,14 @@ std::filesystem::path DummySavPath() {
 
 std::filesystem::path ProfilePath() {
     return RepoRoot() / "profiles" / "pokemon-red-usa-europe-v1.json";
+}
+
+std::filesystem::path SampleMinimalPath() {
+    return RepoRoot() / "samples" / "minimal.red.json";
+}
+
+std::filesystem::path SampleRepresentativePath() {
+    return RepoRoot() / "samples" / "representative.red.json";
 }
 
 std::filesystem::path MakeTempDir(const std::string& name) {
@@ -1465,4 +1474,78 @@ TEST_CASE("Milestone 4 generation writes party data and remains deterministic ac
               pkmn::savegen::encoding::Gen1Layout::PartyNicknamesOff +
                   pkmn::savegen::encoding::Gen1Layout::Gen1NameLen,
               pkmn::savegen::encoding::Gen1Layout::Gen1NameLen) == "ACE");
+}
+
+TEST_CASE("Final release public samples generate valid deterministic saves") {
+    const auto tempDir = MakeTempDir("final-release-samples");
+
+    auto generate = [&](const std::filesystem::path& inputPath,
+                        const std::string& stem) {
+        pkmn::savegen::generation::GenerateRequest request;
+        request.inputJsonPath = inputPath;
+        request.templateSavePath = DummySavPath();
+        request.profilePath = ProfilePath();
+        request.outputSavePath = tempDir / (stem + ".sav");
+        request.outputReportPath = tempDir / (stem + ".report.json");
+        return pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+    };
+
+    const auto minimal = generate(SampleMinimalPath(), "minimal");
+    CHECK(minimal.report.generatorVersion == pkmn::savegen::kGeneratorVersion);
+    CHECK(minimal.integrity.ok);
+    CHECK(minimal.integrity.mainChecksumValid);
+    CHECK(minimal.integrity.bank2ChecksumValid);
+    CHECK(minimal.integrity.bank3ChecksumValid);
+    CHECK(minimal.integrity.currentBoxCacheSynchronized);
+    CHECK(minimal.report.overlappingWrites.empty());
+    CHECK(minimal.expectedSemantic.party.count == 0);
+    CHECK(minimal.expectedSemantic.storage.boxes.size() == 12U);
+    CHECK(minimal.expectedSemantic.hallOfFame.entryCount == 0);
+    CHECK_FALSE(minimal.expectedSemantic.daycare.inUse);
+
+    const auto representative = generate(SampleRepresentativePath(), "representative");
+    CHECK(representative.report.generatorVersion == pkmn::savegen::kGeneratorVersion);
+    CHECK(representative.integrity.ok);
+    CHECK(representative.integrity.currentBoxCacheSynchronized);
+    CHECK(representative.report.overlappingWrites.empty());
+    CHECK(representative.expectedSemantic.identity.trainerId == 257);
+    CHECK(representative.expectedSemantic.party.count == 1);
+    CHECK(representative.expectedSemantic.storage.selectedBoxNumber == 1);
+    REQUIRE(representative.expectedSemantic.storage.boxes.size() == 12U);
+    CHECK(representative.expectedSemantic.storage.boxes[0].count == 1);
+    CHECK(representative.expectedSemantic.daycare.inUse);
+    CHECK(representative.expectedSemantic.hallOfFame.entryCount == 1);
+    CHECK(representative.expectedSemantic.inventory.bagItems.size() == 2U);
+    CHECK(representative.expectedSemantic.inventory.pcItems.size() == 1U);
+    CHECK(representative.expectedSemantic.pokedex.ownedCount == 1U);
+    CHECK(representative.expectedSemantic.pokedex.seenCount == 1U);
+
+    const auto repeat = generate(SampleRepresentativePath(), "representative-repeat");
+    CHECK(representative.outputBytes == repeat.outputBytes);
+}
+
+TEST_CASE("Final release rejects public-sample unsafe location variants") {
+    const auto tempDir = MakeTempDir("final-release-unsafe-location");
+    nlohmann::json unsafe = pkmn::savegen::input::RedJsonReader::ReadFromFile(
+                                SampleMinimalPath()).document;
+    unsafe["decoded"]["location"]["map"]["id"] = 41;
+    unsafe["decoded"]["location"]["map"]["name"] = "Viridian City Pokemon Center";
+    unsafe["decoded"]["location"]["x"]["value"] = 3;
+    unsafe["decoded"]["location"]["y"]["value"] = 6;
+    unsafe["decoded"]["location"]["previousMap"]["id"] = 1;
+    unsafe["decoded"]["runtimeState"]["xBlockCoord"] = 1;
+    unsafe["decoded"]["runtimeState"]["yBlockCoord"] = 1;
+    const auto inputPath = tempDir / "unsafe-viridian.red.json";
+    WriteJson(inputPath, unsafe);
+
+    pkmn::savegen::generation::GenerateRequest request;
+    request.inputJsonPath = inputPath;
+    request.templateSavePath = DummySavPath();
+    request.profilePath = ProfilePath();
+    request.outputSavePath = tempDir / "unsafe-viridian.sav";
+    request.outputReportPath = tempDir / "unsafe-viridian.report.json";
+    CHECK_THROWS_WITH_AS(
+        pkmn::savegen::generation::MinimalSaveGenerator::Generate(request),
+        doctest::Contains("No emulator-validated safe-location profile exists"),
+        std::runtime_error);
 }

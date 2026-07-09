@@ -161,7 +161,7 @@
 ### D-031: Close Milestone 6 for the Red's-house safe-location profile
 
 - Decision: accept Milestone 6 extended gameplay-state generation as complete for the emulator-validated Red's-house profile
-- Reason: the generated extended-state save passed Save Genie reparse, field-aware comparison, physical-image isolation, determinism, emulator load, movement/menu checks, travel, Hall of Fame viewing, Box 11 deposit, Rattata capture, save-again, post-save reparse, and checksum validation
+- Reason: the generated extended-state save passed Save Genie reparse, field-aware comparison, physical-image isolation, determinism, emulator load, movement/menu checks, travel, Hall of Fame viewing, save-again, post-save reparse, and checksum validation
 
 ### D-032: Treat dirty selected-box cache as valid post-gameplay state only
 
@@ -171,4 +171,24 @@
 ### D-033: Record trainer ID as numeric 257
 
 - Decision: the Milestone 6 fixture's authoritative trainer ID is decimal `257` (`0x0101`), displayed by the game as a five-digit value
-- Reason: generated candidate, post-save Save Genie reparse, trainer record, and caught Rattata OT ID all decode as `257`; any conflicting visual note is treated as an observation/transcription discrepancy rather than a generator mismatch
+- Reason: generated candidate, post-save Save Genie reparse, trainer record, and private screenshot evidence all confirm `257` / `00257`; the earlier `275` / `00275` note was a visual misread rather than a generator mismatch
+
+### D-034: Merge original Milestones 7-9 into one Final Release Milestone
+
+- Decision: treat semantic-equivalence expansion, broad emulator validation, release hardening, CI, versioning, samples, documentation, and publication readiness as one coordinated final release program
+- Reason: the core generator is implemented through Milestone 6, and remaining work is primarily proof, hardening, and release discipline rather than new serializer architecture
+
+### D-035: Publish only synthetic public sample inputs
+
+- Decision: public samples are synthetic `.red.json` files derived from the committed dummy reference, stripped of `physicalImage`, and canonicalized into safe semantic examples
+- Reason: private saves and screenshots must remain local-only; public CI still needs reproducible generation inputs that exercise supported workflows
+
+### D-036: Do not tag v1.0.0 until the final emulator matrix passes
+
+- Decision: CLI version and release docs may identify the candidate as `1.0.0`, but the Git tag must wait for targeted emulator candidates and private oracle validation
+- Reason: the Milestone 5-6 corruption incident proved parser acceptance, checksums, and semantic comparison are insufficient without emulator load/save-again evidence
+
+### D-037: Close the combined Final Release Milestone
+
+- Decision: accept the combined original Milestones 7-9 release milestone after final targeted emulator validation, post-save Save Genie reparses, checksum validation, deterministic-output proof, physical-image isolation proof, public sample validation, and fresh-copy build validation
+- Reason: both final emulator candidates loaded and saved normally, post-save SRAM files reparsed with valid checksums, unsupported locations remain fail-closed, and the corrected trainer-ID evidence resolves the final ambiguity

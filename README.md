@@ -1,6 +1,6 @@
 # Pkmn Red Save Generator
 
-Status: Milestones 0-6 complete. Milestones 7-9 remain.
+Status: v1.0.0 release validation complete for the supported Pokemon Red profile. Milestones 0-6 and the combined Final Release Milestone, merging the original Milestones 7-9, are complete.
 
 This project generates a new Pokemon Red `.sav` from semantic `.red.json` data produced by the completed Pokemon Red Save Genie. It is a semantic save generator, not an archival byte-for-byte reconstructor.
 
@@ -45,7 +45,7 @@ Implemented and emulator-validated through Milestone 6:
 - persistent script bytes exposed by Save Genie
 - Red's-house safe runtime/world subset
 
-The latest Milestone 6 emulator validation confirmed normal load, movement, menus, travel to a Pokemon Center, Hall of Fame access with 18 entries, deposit into Box 11, Rattata capture, normal save-again, valid checksums, and successful Save Genie reparse.
+Final release emulator validation confirmed normal Continue/load behavior, movement, menus, trainer/party/Pokedex/Bag/inventory display, broad travel through doors, stairs, warps, scripts, and map transitions, normal save-again, emulator shutdown, valid post-save checksums, and successful Save Genie reparse. Earlier milestone evidence covers PC storage interaction and Hall of Fame viewing; final validation did not directly inspect every subsystem again.
 
 ## Safety Rules
 
@@ -94,6 +94,7 @@ Show help:
 
 ```sh
 build/pkmn-red-save-generator --help
+build/pkmn-red-save-generator --version
 ```
 
 Validate semantic input without writing a save:
@@ -171,6 +172,28 @@ build/pkmn-red-save-generator compare-semantics \
   --reparsed-json generated.red.json
 ```
 
+Generate from public samples:
+
+```sh
+build/pkmn-red-save-generator generate samples/minimal.red.json /tmp/minimal.sav \
+  --report /tmp/minimal.report.json \
+  --summary
+build/pkmn-red-save-generator validate-save --input-save /tmp/minimal.sav
+
+build/pkmn-red-save-generator generate samples/representative.red.json /tmp/representative.sav \
+  --report /tmp/representative.report.json \
+  --summary
+build/pkmn-red-save-generator validate-save --input-save /tmp/representative.sav
+```
+
+Confirm unsafe-location rejection:
+
+```sh
+build/pkmn-red-save-generator inspect samples/unsupported-viridian-pokemon-center.red.json
+```
+
+That command is expected to fail because non-baseline locations are rejected unless their full runtime state is implemented and emulator-proven.
+
 ## Validation Guarantees
 
 For currently supported fields, validation covers:
@@ -186,17 +209,18 @@ For currently supported fields, validation covers:
 - Save Genie reparse
 - field-aware semantic comparison
 - emulator load and save-again validation for Milestones 2-6
+- final release emulator validation with public representative and private full-state candidates
+- public sample generation, checksum validation, deterministic output, physical-image isolation, and unsafe-location rejection in CI
 
-The game displays trainer IDs as five digits. The Milestone 6 validation save uses numeric trainer ID `257`, displayed in-game as `00257`.
+The game displays trainer IDs as five digits. The final private validation save uses numeric trainer ID `257` (`0x0101`), displayed in-game as `00257`.
 
 ## Known Non-Guarantees
 
 - The generator does not claim byte-identical reconstruction.
 - Unsupported locations are rejected rather than guessed.
 - Broader map-runtime serialization is deferred.
-- Full equivalence across every decoded Save Genie field is deferred to Milestone 7.
-- Broad emulator coverage across many representative saves is deferred to Milestone 8.
-- Stable release hardening is deferred to Milestone 9.
+- The public CI does not run an emulator or the private Save Genie oracle workflow.
+- Public samples are synthetic validation inputs; private saves and emulator evidence are intentionally not committed.
 
 ## Documentation
 
@@ -204,9 +228,13 @@ Important project documents:
 
 - `docs/PROJECT_ROADMAP.md`
 - `docs/VALIDATION_PLAN.md`
+- `docs/CLI_REFERENCE.md`
+- `docs/FINAL_RELEASE_VALIDATION_MATRIX.md`
+- `docs/RELEASE_CHECKLIST.md`
 - `docs/MILESTONE_5_STORAGE_CONTRACT.md`
 - `docs/MILESTONE_6_EXTENDED_STATE_CONTRACT.md`
 - `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
 - `docs/SEMANTIC_EQUIVALENCE_CONTRACT.md`
 - `docs/CANONICALIZATION_POLICY.md`
 - `docs/KNOWN_LIMITATIONS.md`
+- `samples/README.md`

@@ -385,12 +385,12 @@
 ### Controlled storage interaction artifact analysis
 
 - The tester reported successful deposit, box switching, withdrawal, game-triggered save, normal save, and emulator close with no visible storage corruption.
-- The initially supplied local artifact `controlled-storage-interaction-start copy.sav` was not usable as post-save evidence:
+- The initially supplied copied local post-save artifact was not usable as post-save evidence:
   - size `32768`
   - SHA-256 `c1005fd8ad32468e748a1e7a2fda8c1fc36dad708d39e70fb9baaf7852c62ce3`
   - Save Genie parsed it as invalid erased/mostly-`0xFF` SRAM
   - main, Bank 2, and Bank 3 checksums were invalid
-- A sibling local artifact `controlled-storage-interaction-start.sav` parsed as the likely valid post-interaction candidate:
+- A sibling local post-interaction artifact parsed as the likely valid post-interaction candidate:
   - size `32768`
   - SHA-256 `b0b86a6581c1ce1199d1dc4860c452ea6efa6959e60e1ba910bcbcb69950db03`
   - main checksum valid
@@ -449,15 +449,13 @@
 Proven findings:
 
 - the Red's-house extended-state validation save loads in the emulator without graphical corruption, malformed text, crashes, freezes, or obvious runtime failure
-- movement, menus, travel to a Pokemon Center, Hall of Fame viewing, deposit into Box 11, Rattata capture, and normal save-again all worked
+- movement, menus, travel, Hall of Fame viewing, and normal save-again all worked without corruption
 - the post-save file remained `32768` bytes and reparsed successfully through Save Genie
 - post-save main, Bank 2, Bank 3, and all 12 per-box checksums were valid
 - Hall of Fame retained exactly 18 entries with identical ordering and contents after save-again
 - Daycare, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named events, and scripts matched the generated candidate exactly after save-again
-- `worldState` drift was expected from normal gameplay travel to Viridian City Pokemon Center
-- `PEGGY` / `PIDGEY` moved from party slot 6 into the selected Box 11 current-box cache
-- the caught `RATTATA` entered party slot 6 with OT `GOON` and OT ID `257`
-- numeric trainer ID is `257` (`0x0101`), displayed by the game as a five-digit value
+- `worldState` drift was expected from normal gameplay travel
+- numeric trainer ID is `257` (`0x0101`), displayed by the game as the five-digit value `00257`
 - selected-box cache can legitimately differ from the permanent selected box after deposit when the dirty flag is set
 
 Implementation decisions:
@@ -465,7 +463,7 @@ Implementation decisions:
 - keep generated-save selected-box cache synchronized with the permanent selected box
 - allow explicit dirty-cache validation only for emulator-modified saves
 - keep Viridian Pokemon Center generation disabled until complete map-runtime serialization exists
-- document the game-play drift categories rather than treating normal travel, capture, deposit, and playtime changes as generator defects
+- document gameplay drift categories rather than treating normal travel, playtime, and runtime/cache changes as generator defects
 
 Open questions:
 
@@ -473,3 +471,22 @@ Open questions:
 - direct occupied-Daycare deposit/withdraw validation with a dedicated fixture
 - broad representative-save coverage for event-heavy and location-heavy states
 - whether boxed-level oracle anomalies should be fixed in Save Genie or remain generator-side permitted canonical differences
+
+### Final release hardening findings
+
+Proven findings:
+
+- public synthetic `.red.json` samples can exercise minimal and representative generation without committing private saves or target `physicalImage`
+- the representative public sample proves generation coverage for party, PC storage, occupied Daycare, Hall of Fame, inventory, badges, Pokedex, hidden-object bits, and visited-town bits under the Red's-house safe-location profile
+- the unsafe Viridian Pokemon Center public sample is schema-valid but rejected by the generation contract, preserving the load-corruption regression as a public negative workflow
+- CLI determinism and physical-image-isolation commands produce byte-identical output for the representative public sample
+
+Implementation decisions:
+
+- public CI focuses on independent generator guarantees and does not require private Save Genie or emulator assets
+- release tagging is allowed after private oracle validation and targeted emulator candidates pass
+
+Open questions:
+
+- direct occupied-Daycare UI interaction remains deferred beyond the final release validation matrix
+- broader non-baseline location contracts still require map-runtime serialization and emulator evidence

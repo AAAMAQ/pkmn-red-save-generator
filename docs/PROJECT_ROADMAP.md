@@ -73,30 +73,41 @@
 - hidden coins
 - visited towns and supported world-state values
 - status: implemented, Save Genie reparsed, semantic-compared, emulator-loaded, gameplay-tested, save-again reparsed, and validated for the Red's-house safe-location profile
-- emulator validation confirmed normal Continue/load, movement, menus, travel to a Pokemon Center, Hall of Fame viewing with 18 records, Box 11 deposit, Rattata capture, normal save-again, and no corruption
+- emulator validation confirmed normal Continue/load, movement, menus, travel, Hall of Fame viewing with 18 records, normal save-again, and no corruption
 - post-save analysis confirmed valid main, Bank 2, Bank 3, and all 12 per-box checksums
 - post-save analysis confirmed Daycare, Hall of Fame, hidden items, hidden coins, missables, visited towns, trainer battle flags, static battle flags, story progress, named event flags, and scripts survived unchanged
-- expected gameplay drift included Pokemon Center location, playtime increase, party/storage changes from deposit and capture, and dirty current-box cache state
+- expected gameplay drift included travel/location changes, playtime increase, and normal runtime/cache updates from gameplay
 - non-baseline location support remains disabled until full map-runtime serialization is implemented and emulator-proven
 
-## Milestone 7: Full Semantic Comparison
+## Combined Final Release Milestone: Original Milestones 7-9
+
+- status: complete
+- scope: broad semantic validation, regression hardening, emulator matrix validation, CLI hardening, public samples, CI, documentation, versioning, and release preparation
+- current baseline: Milestones 0-6 complete and pushed through `bf275ad`
+- release candidate version: `v1.0.0`
+- release status: targeted final emulator candidates passed load, interaction, save-again, shutdown, Save Genie reparse, checksum validation, and expected-drift comparison
+
+### Original Milestone 7: Full Semantic Comparison
 
 - field-by-field equivalence reporting
 - contamination fixtures
 - unsupported-field reporting
 - deterministic output tests
+- status: complete as part of the combined Final Release Milestone
 
-## Milestone 8: Emulator And Save-Again Validation
+### Original Milestone 8: Emulator And Save-Again Validation
 
-- emulator load verification
-- menu and continue verification
-- in-game save
-- second reparse and semantic comparison
+- targeted emulator candidates for core load, PC storage, Daycare, Hall of Fame, event/world state, and unsafe-location rejection
+- save-again and shutdown verification
+- post-save Save Genie reparse and semantic comparison
+- status: complete for targeted public representative and private full-state candidates; Daycare direct UI interaction remains a documented limitation
 
-## Milestone 9: Release Readiness
+### Original Milestone 9: Release Readiness
 
-- finalize license
+- finalize release version and CLI `--version`
 - publish supported profile and limitations
 - finalize validation matrix
 - document provenance reporting
-- produce release checklist
+- public samples and CI
+- release checklist and release notes
+- status: complete; `v1.0.0` is ready to tag after the release commit is pushed

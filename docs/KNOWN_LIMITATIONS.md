@@ -33,13 +33,15 @@
 - Milestone 3 post-save `.sav` reparse after an emulator save-again cycle has now been completed successfully for the approved local validation path.
 - Permanent PC storage is no longer preserved under Policy A in generated outputs; it is generator-owned and checksum-regenerated.
 - Milestone 5 PC-storage interaction, box switching, game-triggered save, normal save, post-save reparse, cache behavior, and storage comparison have passed.
-- Milestone 6 is complete for the Red's-house safe-location profile after emulator base-load, Hall of Fame viewing, gameplay travel, Box 11 deposit, Rattata capture, normal save-again, post-save Save Genie reparse, checksum validation, and expected-drift analysis.
+- Milestone 6 is complete for the Red's-house safe-location profile after emulator base-load, Hall of Fame viewing, gameplay travel, normal save-again, post-save Save Genie reparse, checksum validation, and expected-drift analysis.
 - Direct Daycare deposit/withdraw emulator testing remains deferred to later representative-save validation because the Milestone 6 validation fixture had an empty Daycare.
 - The first PC-storage viewing result is provisional because the tester had to progress gameplay before reaching Bill's PC.
 - Post-gameplay current-box-cache state may differ from permanent selected-box state until the game writes the active box back during a box switch or save flow.
 - The first controlled-interaction post-save artifact set contained one invalid copied save and one valid candidate proving deposit/cache/write-back behavior; a later final artifact completed withdrawal/Box 12 validation.
 - Direct in-game Pokedex UI verification was not a primary Milestone 6 acceptance gate; current Pokedex proof comes from Save Genie reparse and semantic comparison.
 - The Milestone 6 validation save uses numeric trainer ID `257` (`0x0101`), displayed by the game in five-digit format.
+- The combined Final Release Milestone has public CI/sample coverage and targeted final emulator validation. Public CI still does not run emulator validation.
+- Public CI does not run the private Save Genie oracle workflow or an emulator.
 
 ## Licensing Limitations
 

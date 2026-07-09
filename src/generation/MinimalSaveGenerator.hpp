@@ -19,6 +19,7 @@
 #include "../template/Sha256.hpp"
 #include "../template/TemplateProfile.hpp"
 #include "../template/TemplateValidator.hpp"
+#include "../Version.hpp"
 #include "CoreStateSerializer.hpp"
 #include "DaycareSerializer.hpp"
 #include "ExtendedWorldSerializer.hpp"
@@ -74,7 +75,7 @@ public:
 
         WorkingSaveBuffer working =
             RedSaveInitializer::Initialize(loadedTemplate, profile, sanitized.physicalImageRemoved);
-        working.report.generatorVersion = "milestone6-dev";
+        working.report.generatorVersion = std::string(kGeneratorVersion);
         working.report.targetJsonPath = request.inputJsonPath.lexically_normal().string();
         working.report.targetSourceSha256 = semantic.state.sourceSha256;
         working.report.dummyBoxPolicy = "Retired in Milestone 5 - permanent storage is generator-owned";

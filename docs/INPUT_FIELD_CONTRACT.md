@@ -148,3 +148,9 @@ Even after generation starts, some fields may remain deferred until they are pro
 - unknown Bank 2 and Bank 3 tails
 - ambiguous script/cache values
 - impossible event combinations without a safety policy
+
+## Final Release Sample Policy
+
+Public samples under `samples/` are synthetic `.red.json` inputs that exercise the same input contract as real Save Genie exports. They intentionally omit `physicalImage` to demonstrate semantic-only generation.
+
+The unsafe Viridian Pokemon Center sample is schema-valid but contract-rejected. It exists to prove the fail-closed location policy remains active.

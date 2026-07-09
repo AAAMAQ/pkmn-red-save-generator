@@ -178,8 +178,6 @@ Milestone 5 and Milestone 6 emulator evidence:
 - the Milestone 6 Red's-house extended-state candidate passed base-load emulator validation
 - movement, menus, travel to a Pokemon Center, and general gameplay behaved normally
 - Hall of Fame viewing confirmed 18 completed entries
-- depositing `PEGGY` / `PIDGEY` into Box 11 worked normally
-- catching `RATTATA` worked normally and preserved coherent party state
 - the game saved normally after the validation path
 - post-save Save Genie reparse passed
 - post-save validation reported valid main, Bank 2, Bank 3, and all 12 per-box checksums
@@ -247,10 +245,32 @@ Milestone 1 proof:
 
 ## Current Milestone Limitation
 
-Milestone 2 now has an automated minimal generator, main checksum regeneration, Save Genie reparse, deterministic-output proof, and field-aware comparison for owned minimal fields.
+Milestones 0-6 now have automated generation, checksum regeneration, Save Genie oracle validation where private fixtures are available, deterministic-output proof, field-aware comparison for owned fields, and emulator evidence through the Red's-house safe-location profile.
 
-Current open validation gap:
+Remaining validation limitations:
 
-- broader emulator coverage across representative saves for Milestones 7-8
 - full map-runtime support for non-baseline locations
 - direct Daycare deposit/withdraw interaction for an occupied-Daycare fixture
+
+## Final Release Automated Gates
+
+The release-hardening layer adds:
+
+- public minimal and representative `.red.json` samples
+- public unsafe Viridian Pokemon Center negative sample
+- CLI `--version`
+- CI for CMake build, tests, CLI smoke, public sample generation, checksum validation, determinism, physical-image isolation, unsafe-location rejection, whitespace checks, and private-path scanning
+- release checklist and validation matrix
+
+These gates do not replace private Save Genie oracle validation or emulator load/save-again validation. They make public release regressions harder to miss.
+
+## Final Release Emulator Result
+
+The final release validation used two targeted emulator candidates:
+
+- a public representative sample covering clean load, movement, menus, trainer/party/Pokedex/Bag/inventory display, normal gameplay, save-again, shutdown, and post-save reparse
+- a private full-state Red's-house sample covering clean load, movement, menus, broad travel, doors, stairs, warps, scripts, map transitions, normal save-again, shutdown, and post-save reparse
+
+Both candidates passed. Post-save SRAM files were preserved privately, reparsed through Save Genie, and validated with main, Bank 2, Bank 3, and all per-box checksums valid. Differences from pristine generated saves were classified as expected gameplay drift.
+
+Direct final-test inspection did not repeat every subsystem interaction. PC storage and Hall of Fame direct interaction evidence comes from earlier milestone validation; Daycare remains structurally and oracle-validated but not directly UI-tested in the final emulator run.

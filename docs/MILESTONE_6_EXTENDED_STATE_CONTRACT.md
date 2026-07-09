@@ -1,6 +1,6 @@
 # Milestone 6 Extended State Contract
 
-Status: complete for the controlled Red's-house extended-state surface. The current code writes Daycare, Hall of Fame, named events, trainer/static/story flags, missables, scripts, hidden objects, visited towns, named story-evidence/world bits, and a narrow runtime subset. The Milestone 6 candidate passed Save Genie reparse, field-aware semantic comparison, emulator load, movement/menu checks, Hall of Fame viewing, normal gameplay travel, Box 11 deposit, Rattata capture, save-again, post-save reparse, checksum validation, and post-save drift analysis.
+Status: complete for the controlled Red's-house extended-state surface. The current code writes Daycare, Hall of Fame, named events, trainer/static/story flags, missables, scripts, hidden objects, visited towns, named story-evidence/world bits, and a narrow runtime subset. The Milestone 6 candidate passed Save Genie reparse, field-aware semantic comparison, emulator load, movement/menu checks, Hall of Fame viewing, normal gameplay travel, save-again, post-save reparse, checksum validation, and post-save drift analysis.
 
 ## Owned Extended Systems
 
@@ -72,11 +72,9 @@ The emulator-modified post-save file parsed successfully. The observed gameplay 
 
 - location changed from Red's house second floor to Viridian City Pokemon Center
 - playtime increased
-- `PEGGY` / `PIDGEY` was deposited into the selected Box 11 current-box cache
-- a wild `RATTATA` was caught and placed into party slot 6
-- the selected box cache became dirty and intentionally differed from the permanent Box 11 copy
+- normal runtime/cache bytes changed as the game saved after travel
 
-The dirty current-box cache is coherent Gen I behavior after deposit without a subsequent box switch. Generated saves must synchronize cache and permanent selected box; emulator-modified saves may legitimately have the dirty flag set and a divergent cache.
+Generated saves must synchronize cache and permanent selected box. Emulator-modified saves may legitimately set the selected-box dirty flag; cache divergence is accepted only when explicitly validated against the game's current-box mechanics.
 
 Post-save checks:
 

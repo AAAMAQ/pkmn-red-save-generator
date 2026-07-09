@@ -27,6 +27,7 @@
 #include "../template/Sha256.hpp"
 #include "../template/TemplateProfile.hpp"
 #include "../template/TemplateValidator.hpp"
+#include "../Version.hpp"
 
 namespace pkmn::savegen::cli {
 
@@ -36,13 +37,17 @@ public:
         try {
             if (argc < 2) {
                 PrintUsage();
-                return 1;
+                return 0;
             }
 
             const std::string command = argv[1];
             const std::vector<std::string> args(argv + 2, argv + argc);
             if (command == "--help" || command == "-h" || command == "help") {
                 PrintUsage();
+                return 0;
+            }
+            if (command == "--version" || command == "-V" || command == "version") {
+                PrintVersion();
                 return 0;
             }
             if (command == "validate-input" || command == "validate") {
@@ -86,6 +91,8 @@ private:
     static void PrintUsage() {
         std::cout
             << "pkmn-red-save-generator\n"
+            << "  --help\n"
+            << "  --version\n"
             << "  generate <input.red.json> <output.sav> [--report <report.json>] [--dry-run] [--summary] [--show-ranges]\n"
             << "  generate --input <target.red.json> --template <dummy.sav> --profile <profile.json> --output <generated.sav> --report <report.json> [--dry-run]\n"
             << "  validate-input|validate --input <path>\n"
@@ -96,6 +103,10 @@ private:
             << "  check-determinism --input <path> --template <dummy.sav> --profile <profile.json> --work-dir <dir>\n"
             << "  check-physical-image-isolation --input <path> --template <dummy.sav> --profile <profile.json> --work-dir <dir>\n"
             << "  compare-semantics --target-json <target.red.json> --reparsed-json <savegenie-output.red.json>\n";
+    }
+
+    static void PrintVersion() {
+        std::cout << kGeneratorName << " " << kGeneratorVersion << "\n";
     }
 
     static std::string GetRequiredFlag(const std::vector<std::string>& args, std::string_view name) {
