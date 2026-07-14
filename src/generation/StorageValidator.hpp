@@ -21,6 +21,10 @@ public:
         if (storage.selectedBoxNumber < 1 || storage.selectedBoxNumber > 12) {
             throw std::runtime_error("decoded.currentBoxCache.selectedBoxNumber must be in 1..12.");
         }
+        if (!storage.hasCurrentBoxCache) {
+            throw std::runtime_error(
+                "decoded.currentBoxCache.cache is required because Gen I keeps the player-visible current box in Bank 1.");
+        }
 
         std::size_t totalPokemon = 0;
         for (std::size_t i = 0; i < storage.boxes.size(); ++i) {
@@ -30,9 +34,7 @@ public:
         if (totalPokemon > 240U) {
             throw std::runtime_error("decoded.pcStorage total Pokemon exceeds 240.");
         }
-        if (storage.hasCurrentBoxCache) {
-            ValidateCurrentBoxCache(storage);
-        }
+        ValidateCurrentBoxCache(storage);
     }
 
     static void ValidateDaycareOrThrow(const model::DaycareState& daycare) {
@@ -51,6 +53,12 @@ public:
         }
     }
 
+    static void ValidatePokemonOperabilityOrThrow(
+        const model::StoredPokemonState& pokemon,
+        const std::string& semanticPath) {
+        ValidateStoredPokemon(pokemon, semanticPath);
+    }
+
 private:
     static void ValidateBox(const model::StorageBoxState& box, std::size_t index) {
         if (box.boxNumber != static_cast<int>(index + 1U)) {
@@ -63,6 +71,9 @@ private:
             throw IndexedBoxError(index, "count must match pokemon length.");
         }
         for (std::size_t monIndex = 0; monIndex < box.pokemon.size(); ++monIndex) {
+            if (box.pokemon[monIndex].position != static_cast<int>(monIndex + 1U)) {
+                throw IndexedBoxError(index, "Pokemon positions must be sequential and 1-based.");
+            }
             ValidateStoredPokemon(box.pokemon[monIndex],
                                   "decoded.pcStorage.boxes[" + std::to_string(index) +
                                       "].pokemon[" + std::to_string(monIndex) + "]");
@@ -70,8 +81,6 @@ private:
     }
 
     static void ValidateCurrentBoxCache(const model::StorageState& storage) {
-        const auto& selected =
-            storage.boxes[static_cast<std::size_t>(storage.selectedBoxNumber - 1)];
         const auto& cache = storage.currentBoxCache;
         if (cache.count < 0 || cache.count > 20) {
             throw std::runtime_error("decoded.currentBoxCache.cache.count must be in 0..20.");
@@ -84,18 +93,14 @@ private:
             throw std::runtime_error(
                 "decoded.currentBoxCache.cache.boxNumber must match decoded.currentBoxCache.selectedBoxNumber.");
         }
-        if (cache.count != selected.count || cache.pokemon.size() != selected.pokemon.size()) {
-            throw std::runtime_error(
-                "decoded.currentBoxCache.cache must match the selected permanent box.");
-        }
         for (std::size_t monIndex = 0; monIndex < cache.pokemon.size(); ++monIndex) {
+            if (cache.pokemon[monIndex].position != static_cast<int>(monIndex + 1U)) {
+                throw std::runtime_error(
+                    "decoded.currentBoxCache.cache Pokemon positions must be sequential and 1-based.");
+            }
             ValidateStoredPokemon(cache.pokemon[monIndex],
                                   "decoded.currentBoxCache.cache.pokemon[" +
                                       std::to_string(monIndex) + "]");
-            if (cache.pokemon[monIndex] != selected.pokemon[monIndex]) {
-                throw std::runtime_error(
-                    "decoded.currentBoxCache.cache must match the selected permanent box Pokemon-for-Pokemon.");
-            }
         }
     }
 
@@ -111,6 +116,15 @@ private:
         if (mon.experience > 0xFFFFFFU) {
             throw std::runtime_error(label + ": experience must fit in a 24-bit Gen I field.");
         }
+        if (mon.level == 0U || mon.level > 100U) {
+            throw std::runtime_error(label + ": level must be in 1..100.");
+        }
+        const std::uint8_t derivedLevel =
+            PokemonStatCalculator::LevelFromExperience(*species, mon.experience);
+        if (derivedLevel != mon.level) {
+            throw std::runtime_error(
+                label + ": level is inconsistent with species growth rate and experience.");
+        }
         if (mon.dvs.hp != PokemonStatCalculator::DeriveHpDv(mon.dvs)) {
             throw std::runtime_error(label + ": HP DV does not match the packed derivation rule.");
         }
@@ -120,6 +134,15 @@ private:
         ValidateDv(mon.dvs.special, label, "special DV");
         ValidateNames(mon, label);
         ValidateMoveSlots(mon, label);
+        const CalculatedPokemonStats calculated =
+            PokemonStatCalculator::CalculateStoredPokemonStats(*species, mon);
+        if (calculated.maxHp == 0U) {
+            throw std::runtime_error(label + ": boxed Pokemon cannot derive a nonzero maximum HP.");
+        }
+        // Box records store current HP independently. Some emulator-valid or
+        // externally edited saves contain a value above the currently derived
+        // maximum. Preserve and report that source state rather than silently
+        // clamping it; withdrawal viability requires a nonzero derived max HP.
     }
 
     static void ValidateNames(const model::StoredPokemonState& mon,

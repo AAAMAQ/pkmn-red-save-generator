@@ -323,8 +323,8 @@ public:
             state.sourceSha256 = source.at("hashes").at("wholeFileSha256").get<std::string>();
             state.physicalImageIgnored = physicalImageIgnored;
 
-            state.identity.playerName = decoded.at("trainer").at("name").at("value").get<std::string>();
-            state.identity.rivalName = decoded.at("rival").at("name").at("value").get<std::string>();
+            state.identity.playerName = ParseTextObject(decoded.at("trainer").at("name"));
+            state.identity.rivalName = ParseTextObject(decoded.at("rival").at("name"));
             state.identity.trainerId =
                 static_cast<std::uint16_t>(decoded.at("trainer").at("trainerId").at("value").get<int>());
 
@@ -424,8 +424,9 @@ public:
 
             state.storage.selectedBoxNumber =
                 decoded.at("currentBoxCache").at("selectedBoxNumber").get<int>();
-            state.storage.boxChangedFlag =
-                decoded.at("currentBoxCache").at("boxChangedFlag").get<bool>();
+            state.storage.boxChangedFlag = decoded.at("currentBoxCache").value(
+                "hasChangedBoxesBefore",
+                decoded.at("currentBoxCache").value("boxChangedFlag", false));
             if (decoded.at("currentBoxCache").contains("cache") &&
                 !decoded.at("currentBoxCache").at("cache").is_null()) {
                 state.storage.hasCurrentBoxCache = true;
@@ -495,6 +496,43 @@ private:
         return static_cast<std::uint8_t>(std::stoul(value.substr(2), nullptr, 16));
     }
 
+    static std::string ParseTextObject(const nlohmann::json& value) {
+        if (value.contains("losslessValue")) {
+            return value.at("losslessValue").get<std::string>();
+        }
+        return value.at("value").get<std::string>();
+    }
+
+    static std::string ParseTrainerText(const nlohmann::json& trainer) {
+        if (trainer.contains("nameLossless")) {
+            return trainer.at("nameLossless").get<std::string>();
+        }
+        return trainer.at("name").get<std::string>();
+    }
+
+    static void ParseStoredTypeAndCatchFields(const nlohmann::json& mon,
+                                              const pokemon::SpeciesData& species,
+                                              std::uint8_t* type1,
+                                              std::uint8_t* type2,
+                                              std::uint8_t* catchRate) {
+        *type1 = species.type1;
+        *type2 = species.type2;
+        *catchRate = species.catchRate;
+
+        if (mon.contains("types") && mon.at("types").is_object()) {
+            const auto& types = mon.at("types");
+            if (types.contains("primaryId") && types.contains("secondaryId")) {
+                *type1 = static_cast<std::uint8_t>(types.at("primaryId").get<int>());
+                *type2 = static_cast<std::uint8_t>(types.at("secondaryId").get<int>());
+            }
+        }
+        if (mon.contains("catchRate") && mon.at("catchRate").is_object() &&
+            mon.at("catchRate").contains("value")) {
+            *catchRate = static_cast<std::uint8_t>(
+                mon.at("catchRate").at("value").get<int>());
+        }
+    }
+
     static PartyPokemonState ParsePartyPokemon(const nlohmann::json& mon) {
         PartyPokemonState partyMon;
         partyMon.position = mon.at("position").get<int>();
@@ -503,8 +541,8 @@ private:
         partyMon.speciesName = mon.at("species").at("name").get<std::string>();
         partyMon.nationalDexNumber = static_cast<std::uint8_t>(
             mon.at("species").at("nationalDexNumber").get<int>());
-        partyMon.nickname = mon.at("nickname").at("value").get<std::string>();
-        partyMon.originalTrainerName = mon.at("originalTrainer").at("name").get<std::string>();
+        partyMon.nickname = ParseTextObject(mon.at("nickname"));
+        partyMon.originalTrainerName = ParseTrainerText(mon.at("originalTrainer"));
         partyMon.originalTrainerId = static_cast<std::uint16_t>(
             mon.at("originalTrainer").at("idNo").get<int>());
         partyMon.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
@@ -517,9 +555,8 @@ private:
                 "decoded.party contains unsupported species id " +
                 std::to_string(partyMon.speciesId) + ".");
         }
-        partyMon.type1 = speciesData->type1;
-        partyMon.type2 = speciesData->type2;
-        partyMon.catchRate = speciesData->catchRate;
+        ParseStoredTypeAndCatchFields(
+            mon, *speciesData, &partyMon.type1, &partyMon.type2, &partyMon.catchRate);
 
         const nlohmann::json& stats = mon.at("stats");
         partyMon.currentHp = static_cast<std::uint16_t>(stats.at("hpCurrent").get<int>());
@@ -562,19 +599,18 @@ private:
         stored.speciesName = mon.at("species").at("name").get<std::string>();
         stored.nationalDexNumber = static_cast<std::uint8_t>(
             mon.at("species").at("nationalDexNumber").get<int>());
-        stored.nickname = mon.at("nickname").at("value").get<std::string>();
-        stored.originalTrainerName = mon.at("originalTrainer").at("name").get<std::string>();
+        stored.nickname = ParseTextObject(mon.at("nickname"));
+        stored.originalTrainerName = ParseTrainerText(mon.at("originalTrainer"));
         stored.originalTrainerId = static_cast<std::uint16_t>(
             mon.at("originalTrainer").at("idNo").get<int>());
         stored.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
         stored.experience = static_cast<std::uint32_t>(mon.at("experience").get<int>());
         stored.statusRaw = ParseHexByte(mon.at("status").at("rawByte").get<std::string>());
 
-        if (const auto* speciesData = pokemon::FindSpeciesData(stored.speciesId);
-            speciesData != nullptr) {
-            stored.type1 = speciesData->type1;
-            stored.type2 = speciesData->type2;
-            stored.catchRate = speciesData->catchRate;
+        const auto* speciesData = pokemon::FindSpeciesData(stored.speciesId);
+        if (speciesData != nullptr) {
+            ParseStoredTypeAndCatchFields(
+                mon, *speciesData, &stored.type1, &stored.type2, &stored.catchRate);
         }
 
         const auto& stats = mon.at("stats");
@@ -649,7 +685,9 @@ private:
             pokemonState.nationalDexNumber = static_cast<std::uint8_t>(
                 mon.at("species").at("nationalDexNumber").get<int>());
             pokemonState.level = static_cast<std::uint8_t>(mon.at("level").get<int>());
-            pokemonState.nickname = mon.at("nickname").get<std::string>();
+            pokemonState.nickname = mon.contains("nicknameLossless")
+                ? mon.at("nicknameLossless").get<std::string>()
+                : mon.at("nickname").get<std::string>();
             parsed.pokemon.push_back(std::move(pokemonState));
         }
         return parsed;

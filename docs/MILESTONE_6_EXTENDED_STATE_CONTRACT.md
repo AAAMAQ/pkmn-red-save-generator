@@ -74,7 +74,7 @@ The emulator-modified post-save file parsed successfully. The observed gameplay 
 - playtime increased
 - normal runtime/cache bytes changed as the game saved after travel
 
-Generated saves must synchronize cache and permanent selected box. Emulator-modified saves may legitimately set the selected-box dirty flag; cache divergence is accepted only when explicitly validated against the game's current-box mechanics.
+Generated saves preserve the Bank 1 current working box and the selected permanent-bank box as separate semantic structures. Either equality or divergence is accepted only when both structures are valid and the relationship is classified explicitly; generation never erases a divergent player-visible working box merely to force equality.
 
 Post-save checks:
 

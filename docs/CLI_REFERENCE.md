@@ -37,7 +37,8 @@ Safety behavior:
 - report paths must not collide with the output save or template;
 - existing output and report files are not overwritten;
 - target `physicalImage` is ignored;
-- unsupported locations and inconsistent mirrored state are rejected.
+- unsupported locations are canonicalized to Red's house second floor with an explicit warning;
+- contradictory required mirrors are rejected, while valid current-working-box divergence is preserved.
 
 ## Dry Run
 
@@ -61,7 +62,21 @@ build/pkmn-red-save-generator validate-template \
 build/pkmn-red-save-generator validate-save --input-save /tmp/generated.sav
 ```
 
-Use `--allow-dirty-current-box` only for emulator-modified post-save files where Gen I has intentionally written a dirty current-box cache that differs from the permanent selected box.
+`validate-save` validates the permanent boxes and current working box independently. A working box that differs from the selected permanent copy is reported as valid Gen I state and does not require an override.
+
+Operational validators and inspectors:
+
+```sh
+build/pkmn-red-save-generator validate-text --text 'Lt<DOT>Ash'
+build/pkmn-red-save-generator validate-boxes --input <input.red.json>
+build/pkmn-red-save-generator validate-pokemon-operability --input <input.red.json>
+build/pkmn-red-save-generator validate-hall-of-fame --input <input.red.json>
+build/pkmn-red-save-generator inspect-box --input <input.red.json> --box 12
+build/pkmn-red-save-generator inspect-box --input <input.red.json> --box 12 --current-cache
+build/pkmn-red-save-generator inspect-pokemon --input <input.red.json> --box 1 --slot 2
+```
+
+`--current-cache` selects the Bank 1 working representation and requires `--box` to equal the selected box number.
 
 ## Determinism And Physical-Image Isolation
 
@@ -88,10 +103,30 @@ Changing, removing, or corrupting the target JSON `physicalImage` must not alter
 ```sh
 build/pkmn-red-save-generator compare-semantics \
   --target-json <input.red.json> \
-  --reparsed-json <generated.red.json>
+  --reparsed-json <generated.red.json> \
+  --report <semantic-comparison.json> \
+  --markdown <semantic-comparison.md>
 ```
 
-The `reparsed-json` should come from the read-only Pokemon Red Save Genie oracle. Public CI does not require the sibling Save Genie repository.
+The `reparsed-json` should come from the independent Pokemon Red Save Genie oracle. Public CI does not require the sibling Save Genie repository.
+
+## Physical And Post-Emulator Comparison
+
+```sh
+build/pkmn-red-save-generator compare-physical \
+  --original <original.sav> \
+  --generated <generated.sav> \
+  --report <physical-comparison.json> \
+  --markdown <physical-comparison.md>
+
+build/pkmn-red-save-generator analyze-post-emulator \
+  --before <generated.sav> \
+  --after <generated-post-emulator.sav> \
+  --report <post-emulator-comparison.json> \
+  --markdown <post-emulator-comparison.md>
+```
+
+Reports use zero-based inclusive offsets. Post-emulator analysis validates checksums, all permanent box structures, and the current working box in both files. Gameplay drift still requires field-aware classification after Save Genie reparse.
 
 ## Public Samples
 
@@ -107,7 +142,7 @@ build/pkmn-red-save-generator generate samples/representative.red.json /tmp/repr
 build/pkmn-red-save-generator validate-save --input-save /tmp/representative.sav
 ```
 
-The negative sample below is expected to fail:
+The unsupported-location sample is expected to pass inspection with a warning that generation will use the safe Red's-house location:
 
 ```sh
 build/pkmn-red-save-generator inspect samples/unsupported-viridian-pokemon-center.red.json

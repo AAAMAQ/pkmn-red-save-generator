@@ -30,7 +30,7 @@ Milestone 1 implemented the first validation layers. Generation validation is no
 - no target `physicalImage` reads
 - no out-of-range writes
 - supported sections written deterministically
-- duplicate/cache synchronization completed
+- duplicate/cache policy applied without erasing valid divergent working state
 - checksum regeneration completed
 - partially implemented in Milestone 1:
   - `physicalImage` is stripped before semantic-state construction
@@ -56,10 +56,14 @@ Milestone 1 implemented the first validation layers. Generation validation is no
   - deterministic party serialization independent of target `physicalImage`
 - Milestone 5 and Milestone 6 code now additionally validate:
   - all 12 permanent boxes
-  - current-box cache agreement with the selected permanent box
+  - independent structural validity of the current-box working copy and all permanent boxes
+  - selected-box dirty-state coherence and explicit current/permanent divergence classification
+  - boxed-record withdrawal viability using independently calculated Generation I stats
   - per-box checksums and bank 2 and 3 all-box checksums
   - daycare occupancy consistency
   - Hall of Fame record count and entry structure
+  - every Hall of Fame slot, internal species ID, level, text boundary, and team stride
+  - lossless Generation I text encoding without fallback substitution
   - event-flag source agreement across `events`, `trainerBattles`, `staticBattles`, and `storyProgress`
   - complete 228-entry missable object input
   - complete 97-entry script input with no overlapping script byte ranges
@@ -150,11 +154,11 @@ Milestone 4 emulator save-again evidence is now also recorded for the approved l
 
 Milestone 6 automated/private-fixture evidence:
 
-- the raw private full semantic fixture fails closed because its non-baseline location is not emulator-proven
+- the raw private full semantic fixture is accepted by canonicalizing its non-baseline location to Red's house second floor because the source location is not emulator-proven
 - the private Red's-house projection generates successfully without using target `physicalImage`
 - Save Genie reparses the generated Red's-house extended-state save successfully
 - generator-side semantic comparison reports `PASS with permitted canonical differences`
-- the only reported permitted differences are a small set of boxed `level` fields whose source values are implausible oracle decodes
+- corrected boxed-record decoding removes the former boxed-level permitted-difference exception
 - all permanent box checksums and bank 2 and 3 all-box checksums validate on generated output
 - generation with original, removed, and replaced target `physicalImage` produced byte-identical `.sav` outputs
 - the generated save is `32768` bytes and has no overlapping generation-report writes
@@ -174,10 +178,24 @@ Milestone 5 and Milestone 6 emulator evidence:
 - the final post-withdrawal artifact validated selected/current Box 12, withdrawn `RED` in party slot 6, deposited `PEGGY` in permanent Box 11, active Box 12 current-box cache, all per-box checksums, and Bank 2/3 all-box checksums
 - controlled deposit, withdraw, box-switch, save-again, and post-save comparison passed for Milestone 5
 - the failure is documented in `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
-- direct raw fixture generation now fails closed because the source location is not in the emulator-validated location set
+- direct raw fixture generation now reports location canonicalization when the source location is not in the emulator-validated location set
 - the Milestone 6 Red's-house extended-state candidate passed base-load emulator validation
 - movement, menus, travel to a Pokemon Center, and general gameplay behaved normally
 - Hall of Fame viewing confirmed 18 completed entries
+
+## Corrective Semantic-Sufficiency Gate
+
+The first completed-playthrough automated comparison was invalidated by manual findings even though checksums and Save Genie reparse passed. The corrected gate therefore requires:
+
+- lossless byte-aware text comparison and fallback detection
+- permanent-box and current-working-box comparison as distinct structures
+- operational withdrawal viability for every boxed Pokemon
+- complete Hall of Fame comparison by record and slot
+- strict internal Generation I species-ID validation
+- independent structural checks that do not import serializer assumptions
+- focused emulator retest followed by post-save reparse
+
+Until the focused retest passes, the correct status is `CORRECTED AUTOMATED PHASE PASSED - AWAITING SECOND MANUAL EMULATOR RETEST`.
 - the game saved normally after the validation path
 - post-save Save Genie reparse passed
 - post-save validation reported valid main, Bank 2, Bank 3, and all 12 per-box checksums
@@ -257,9 +275,9 @@ Remaining validation limitations:
 The release-hardening layer adds:
 
 - public minimal and representative `.red.json` samples
-- public unsafe Viridian Pokemon Center negative sample
+- public unsupported Viridian Pokemon Center canonicalization sample
 - CLI `--version`
-- CI for CMake build, tests, CLI smoke, public sample generation, checksum validation, determinism, physical-image isolation, unsafe-location rejection, whitespace checks, and private-path scanning
+- CI for CMake build, tests, CLI smoke, public sample generation, checksum validation, determinism, physical-image isolation, unsupported-location canonicalization, whitespace checks, and private-path scanning
 - release checklist and validation matrix
 
 These gates do not replace private Save Genie oracle validation or emulator load/save-again validation. They make public release regressions harder to miss.

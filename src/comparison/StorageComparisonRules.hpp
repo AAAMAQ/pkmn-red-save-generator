@@ -92,6 +92,11 @@ private:
                                std::size_t monIndex,
                                AddFn&& add_if) {
         const std::string prefix = boxPrefix + ".pokemon[" + std::to_string(monIndex) + "]";
+        add_if(expected.position != actual.position,
+               DifferenceCategory::RequiredExactMismatch,
+               prefix + ".position",
+               std::to_string(expected.position),
+               std::to_string(actual.position));
         add_if(expected.speciesId != actual.speciesId,
                DifferenceCategory::RequiredExactMismatch,
                prefix + ".speciesId",
@@ -113,7 +118,7 @@ private:
                std::to_string(expected.originalTrainerId),
                std::to_string(actual.originalTrainerId));
         add_if(expected.level != actual.level,
-               DifferenceCategory::PermittedCanonicalDifference,
+               DifferenceCategory::RequiredExactMismatch,
                prefix + ".level",
                std::to_string(expected.level),
                std::to_string(actual.level));
@@ -123,15 +128,30 @@ private:
                std::to_string(expected.experience),
                std::to_string(actual.experience));
         add_if(expected.statusRaw != actual.statusRaw,
-               DifferenceCategory::PermittedCanonicalDifference,
+               DifferenceCategory::RequiredExactMismatch,
                prefix + ".statusRaw",
                std::to_string(expected.statusRaw),
                std::to_string(actual.statusRaw));
         add_if(expected.currentHp != actual.currentHp,
-               DifferenceCategory::PermittedCanonicalDifference,
+               DifferenceCategory::RequiredExactMismatch,
                prefix + ".currentHp",
                std::to_string(expected.currentHp),
                std::to_string(actual.currentHp));
+        add_if(expected.type1 != actual.type1,
+               DifferenceCategory::RequiredExactMismatch,
+               prefix + ".type1",
+               std::to_string(expected.type1),
+               std::to_string(actual.type1));
+        add_if(expected.type2 != actual.type2,
+               DifferenceCategory::RequiredExactMismatch,
+               prefix + ".type2",
+               std::to_string(expected.type2),
+               std::to_string(actual.type2));
+        add_if(expected.catchRate != actual.catchRate,
+               DifferenceCategory::RequiredExactMismatch,
+               prefix + ".catchRate",
+               std::to_string(expected.catchRate),
+               std::to_string(actual.catchRate));
 
         add_if(expected.dvs.hp != actual.dvs.hp,
                DifferenceCategory::RequiredExactMismatch,

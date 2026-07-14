@@ -6,11 +6,13 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <doctest/doctest.h>
 
 #include "../src/comparison/SemanticComparator.hpp"
+#include "../src/comparison/PhysicalComparator.hpp"
 #include "../src/encoding/BcdEncoder.hpp"
 #include "../src/encoding/Gen1Layout.hpp"
 #include "../src/encoding/BitfieldWriter.hpp"
@@ -390,6 +392,38 @@ TEST_CASE("Primitive writers encode and validate core formats") {
     pkmn::savegen::encoding::PrimitiveWriter::WriteBytes(textBuffer, 0, encoded);
     CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(textBuffer, 0, 11) == "Az-9?!");
 
+    const auto lossless =
+        pkmn::savegen::encoding::Gen1TextEncoder::EncodeName("Lt<DOT>Ash", 11);
+    CHECK(lossless[2] == 0xF2);
+    pkmn::savegen::encoding::PrimitiveWriter::WriteBytes(textBuffer, 0, lossless);
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(textBuffer, 0, 11) == "Lt.Ash");
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeNameLossless(textBuffer, 0, 11) ==
+          "Lt<DOT>Ash");
+    CHECK_NOTHROW(pkmn::savegen::encoding::Gen1TextEncoder::EncodeName("NIDORAN♀", 11));
+    CHECK_THROWS(pkmn::savegen::encoding::Gen1TextEncoder::EncodeName("BAD🙂", 11));
+
+    const std::vector<std::pair<std::string, std::uint8_t>> textTokens = {
+        {"<PC>", 0x5B}, {"<TM>", 0x5C}, {"<TRAINER>", 0x5D},
+        {"<ROCKET>", 0x5E}, {" ", 0x7F}, {"(", 0x9A}, {")", 0x9B},
+        {":", 0x9C}, {";", 0x9D}, {"[", 0x9E}, {"]", 0x9F}, {"é", 0xBA},
+        {"<APOS_D>", 0xBB}, {"<APOS_L>", 0xBC}, {"<APOS_S>", 0xBD},
+        {"<APOS_T>", 0xBE}, {"<APOS_V>", 0xBF}, {"'", 0xE0},
+        {"<PK>", 0xE1}, {"<MN>", 0xE2}, {"-", 0xE3},
+        {"<APOS_R>", 0xE4}, {"<APOS_M>", 0xE5}, {"?", 0xE6},
+        {"!", 0xE7}, {"<PERIOD>", 0xE8}, {"♂", 0xEF}, {"¥", 0xF0},
+        {"×", 0xF1}, {"<DOT>", 0xF2}, {"/", 0xF3}, {",", 0xF4},
+        {"♀", 0xF5}, {"<0xC0>", 0xC0}
+    };
+    for (const auto& [token, expectedByte] : textTokens) {
+        const auto roundTrip =
+            pkmn::savegen::encoding::Gen1TextEncoder::EncodeName(token, 2);
+        CHECK(roundTrip[0] == expectedByte);
+        CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeNameLossless(
+                  roundTrip, 0, roundTrip.size()) == token);
+    }
+    CHECK_THROWS(
+        pkmn::savegen::encoding::Gen1TextEncoder::EncodeName("<0x50>", 2));
+
     CHECK_THROWS_AS(
         pkmn::savegen::encoding::PrimitiveWriter::WriteU24BigEndian(buffer, 6, 1U),
         std::out_of_range);
@@ -469,6 +503,43 @@ TEST_CASE("Physical image changes do not affect semantic state mapping") {
             pkmn::savegen::comparison::SemanticComparator::CompareOwnedFields(originalBuild.state, build.state);
         CHECK(differences.empty());
     }
+}
+
+TEST_CASE("Gen I stat calculation uses ceiling square root of stat experience") {
+    pkmn::savegen::model::PartyPokemonState slowbro;
+    slowbro.level = 100;
+    slowbro.dvs.hp = 10;
+    slowbro.dvs.attack = 13;
+    slowbro.dvs.defense = 12;
+    slowbro.dvs.speed = 11;
+    slowbro.dvs.special = 12;
+    slowbro.statExperience.hp = 50;
+    const auto* species = pkmn::savegen::pokemon::FindSpeciesData(8);
+    REQUIRE(species != nullptr);
+    const auto stats =
+        pkmn::savegen::generation::PokemonStatCalculator::CalculatePartyStats(
+            *species, slowbro);
+    CHECK(stats.maxHp == 322);
+}
+
+TEST_CASE("Physical comparator reports contiguous equal and differing ranges") {
+    const std::vector<std::uint8_t> original{1, 2, 3, 4, 5};
+    const std::vector<std::uint8_t> generated{1, 9, 8, 4, 5};
+    const auto result = pkmn::savegen::comparison::PhysicalComparator::Compare(
+        original, generated);
+    CHECK(result.equalBytes == 3);
+    CHECK(result.differingBytes == 2);
+    CHECK(result.firstDifference == 1);
+    CHECK(result.lastDifference == 2);
+    REQUIRE(result.regions.size() == 3);
+    CHECK(result.regions[1].start == 1);
+    CHECK(result.regions[1].endInclusive == 2);
+    CHECK_FALSE(result.regions[1].equal);
+
+    const auto identical = pkmn::savegen::comparison::PhysicalComparator::Compare(
+        original, original);
+    CHECK(identical.byteIdentical());
+    CHECK(identical.regions.size() == 1);
 }
 
 TEST_CASE("Party validator accepts valid empty and full Gen I parties") {
@@ -656,10 +727,10 @@ TEST_CASE("Storage validator rejects malformed box state") {
         CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
     }
 
-    SUBCASE("current box cache mismatch") {
+    SUBCASE("dirty current box cache mismatch is accepted as diagnostic input") {
         storage.currentBoxCache.count = 1;
         storage.currentBoxCache.pokemon = {ToStoredPokemon(MakeDefaultPidgey(1, "BIRD"))};
-        CHECK_THROWS(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+        CHECK_NOTHROW(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
     }
 }
 
@@ -697,6 +768,16 @@ TEST_CASE("Storage serializer writes permanent boxes current-box cache and check
                         pkmn::savegen::encoding::Gen1Layout::BoxSpeciesRel + 1] == second.speciesId);
     CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] +
                         pkmn::savegen::encoding::Gen1Layout::BoxSpeciesRel + 2] == 0xFF);
+    const std::size_t firstStruct =
+        pkmn::savegen::encoding::Gen1Layout::PermanentBoxOffsets[1] +
+        pkmn::savegen::encoding::Gen1Layout::BoxStructsRel;
+    CHECK(pkmn::savegen::encoding::PrimitiveWriter::ReadU16BigEndian(
+              working.bytes,
+              firstStruct + pkmn::savegen::encoding::Gen1Layout::BoxMonCurrentHpRel) ==
+          first.currentHp);
+    CHECK(working.bytes[
+              firstStruct + pkmn::savegen::encoding::Gen1Layout::BoxMonLevelRel] ==
+          first.level);
 
     for (std::size_t i = 0; i < pkmn::savegen::encoding::Gen1Layout::BoxBlockSize; ++i) {
         CHECK(working.bytes[pkmn::savegen::encoding::Gen1Layout::CurrentBoxCacheOff + i] ==
@@ -712,6 +793,46 @@ TEST_CASE("Storage serializer writes permanent boxes current-box cache and check
     for (bool valid : integrity.boxChecksumsValid) {
         CHECK(valid);
     }
+    for (bool valid : integrity.boxStructuresValid) {
+        CHECK(valid);
+    }
+}
+
+TEST_CASE("Storage serializer preserves a divergent player-visible current-box cache") {
+    using pkmn::savegen::encoding::Gen1Layout;
+    const auto profile =
+        pkmn::savegen::template_profile::TemplateProfileLoader::LoadFromFile(ProfilePath());
+    const auto loaded =
+        pkmn::savegen::template_loader::CanonicalTemplateLoader::Load(DummySavPath());
+    auto working =
+        pkmn::savegen::generation::RedSaveInitializer::Initialize(loaded, profile, true);
+
+    pkmn::savegen::model::StorageState storage;
+    storage.selectedBoxNumber = 12;
+    storage.boxChangedFlag = true;
+    for (int i = 1; i <= 12; ++i) {
+        storage.boxes.push_back({i, 0, {}});
+    }
+    storage.hasCurrentBoxCache = true;
+    storage.currentBoxCache = {12, 1, {ToStoredPokemon(MakeDefaultPidgey(1, "VISIBLE"))}};
+
+    CHECK_NOTHROW(pkmn::savegen::generation::StorageValidator::ValidateOrThrow(storage));
+    pkmn::savegen::generation::StorageSerializer::WriteStorage(working, storage);
+    working.bytes[Gen1Layout::MainChecksumOff] =
+        pkmn::savegen::integrity::ChecksumAlgorithms::ComputeMainChecksum(working.bytes);
+
+    CHECK(working.bytes[Gen1Layout::PermanentBoxOffsets[11]] == 0);
+    CHECK(working.bytes[Gen1Layout::CurrentBoxCacheOff] == 1);
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              working.bytes,
+              Gen1Layout::CurrentBoxCacheOff + Gen1Layout::BoxNicknamesRel,
+              Gen1Layout::Gen1NameLen) == "VISIBLE");
+    const auto integrity =
+        pkmn::savegen::integrity::IntegrityValidator::ValidateGeneratedSave(working.bytes);
+    CHECK(integrity.ok);
+    CHECK(integrity.currentBoxCacheValid);
+    CHECK_FALSE(integrity.currentBoxCacheMatchesSelectedPermanent);
+    CHECK_FALSE(integrity.warnings.empty());
 }
 
 TEST_CASE("Storage layout boundaries do not overlap adjacent main-save or checksum regions") {
@@ -792,17 +913,19 @@ TEST_CASE("Milestone 6 Hall of Fame serializer writes records and clears unused 
 
     pkmn::savegen::model::HallOfFameState hall;
     hall.entryCount = 1;
-    hall.entries.push_back({
-        1,
-        {{
-            1,
-            36,
-            "PIDGEY",
-            16,
-            5,
-            "BIRD"
-        }}
-    });
+    pkmn::savegen::model::HallOfFameEntryState entry;
+    entry.entryNumber = 1;
+    for (int slot = 1; slot <= 6; ++slot) {
+        entry.pokemon.push_back({
+            slot,
+            static_cast<std::uint8_t>(slot == 6 ? 0xB4 : 36),
+            slot == 6 ? "CHARIZARD" : "PIDGEY",
+            static_cast<std::uint8_t>(slot == 6 ? 6 : 16),
+            static_cast<std::uint8_t>(4 + slot),
+            slot == 6 ? "CHARIZARD" : "BIRD"
+        });
+    }
+    hall.entries.push_back(entry);
 
     CHECK_NOTHROW(pkmn::savegen::generation::HallOfFameSerializer::ValidateOrThrow(hall));
     pkmn::savegen::generation::HallOfFameSerializer::WriteHallOfFame(working, hall);
@@ -812,7 +935,10 @@ TEST_CASE("Milestone 6 Hall of Fame serializer writes records and clears unused 
     CHECK(working.bytes[Gen1Layout::HallOfFameOff + 1U] == 5);
     CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
               working.bytes, Gen1Layout::HallOfFameOff + 2U, Gen1Layout::Gen1NameLen) == "BIRD");
-    CHECK(working.bytes[Gen1Layout::HallOfFameOff + 0x10U] == 0);
+    CHECK(working.bytes[Gen1Layout::HallOfFameOff + 0x50U] == 0xB4);
+    CHECK(pkmn::savegen::encoding::Gen1TextEncoder::DecodeName(
+              working.bytes, Gen1Layout::HallOfFameOff + 0x52U, Gen1Layout::Gen1NameLen) ==
+          "CHARIZARD");
 }
 
 TEST_CASE("Milestone 6 extended-world serializer owns missables event flags and scripts") {
@@ -939,7 +1065,7 @@ TEST_CASE("Storage comparison reports precise indexed field paths") {
         }));
 }
 
-TEST_CASE("Semantic comparator treats permitted canonical differences as non-blocking") {
+TEST_CASE("Semantic comparator treats stored level changes as blocking") {
     pkmn::savegen::model::RedSemanticState expected;
     pkmn::savegen::model::RedSemanticState actual;
     expected.storage.selectedBoxNumber = 1;
@@ -958,8 +1084,8 @@ TEST_CASE("Semantic comparator treats permitted canonical differences as non-blo
 
     REQUIRE(differences.size() == 1);
     CHECK(differences.front().category ==
-          pkmn::savegen::comparison::DifferenceCategory::PermittedCanonicalDifference);
-    CHECK_FALSE(pkmn::savegen::comparison::SemanticComparator::HasBlockingDifferences(differences));
+          pkmn::savegen::comparison::DifferenceCategory::RequiredExactMismatch);
+    CHECK(pkmn::savegen::comparison::SemanticComparator::HasBlockingDifferences(differences));
 }
 
 TEST_CASE("Template profile and validator analyze the committed dummy") {
@@ -1108,7 +1234,7 @@ TEST_CASE("Milestone 2 generation ignores target physicalImage and is determinis
     CHECK(firstResult.outputBytes == secondResult.outputBytes);
 }
 
-TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output collisions") {
+TEST_CASE("Milestone 3 generation canonicalizes unsupported source locations and rejects output collisions") {
     const auto parsed = pkmn::savegen::input::RedJsonReader::ReadFromFile(DummyJsonPath());
     const auto tempDir = MakeTempDir("milestone2-reject");
 
@@ -1125,7 +1251,18 @@ TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output 
     request.profilePath = ProfilePath();
     request.outputSavePath = tempDir / "bad-location.sav";
     request.outputReportPath = tempDir / "bad-location.report.json";
-    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
+    const auto badLocationResult =
+        pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+    CHECK(badLocationResult.expectedSemantic.core.mapId == 38);
+    CHECK(badLocationResult.expectedSemantic.core.x == 3);
+    CHECK(badLocationResult.expectedSemantic.core.y == 6);
+    CHECK(badLocationResult.report.warnings.size() >= 1U);
+    CHECK(std::any_of(
+        badLocationResult.report.warnings.begin(),
+        badLocationResult.report.warnings.end(),
+        [](const std::string& warning) {
+            return warning.find("canonicalize the start location") != std::string::npos;
+        }));
 
     nlohmann::json viridianPokemonCenter = MakeStorageReadyProjection(parsed.document);
     viridianPokemonCenter["decoded"]["location"]["map"]["id"] = 41;
@@ -1139,7 +1276,11 @@ TEST_CASE("Milestone 3 generation rejects unsupported safe locations and output 
     request.inputJsonPath = viridianPath;
     request.outputSavePath = tempDir / "viridian-pokemon-center.sav";
     request.outputReportPath = tempDir / "viridian-pokemon-center.report.json";
-    CHECK_THROWS(pkmn::savegen::generation::MinimalSaveGenerator::Generate(request));
+    const auto viridianResult =
+        pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+    CHECK(viridianResult.expectedSemantic.core.mapId == 38);
+    CHECK(viridianResult.expectedSemantic.core.x == 3);
+    CHECK(viridianResult.expectedSemantic.core.y == 6);
 
     const auto existingOutput = tempDir / "existing.sav";
     {
@@ -1524,7 +1665,7 @@ TEST_CASE("Final release public samples generate valid deterministic saves") {
     CHECK(representative.outputBytes == repeat.outputBytes);
 }
 
-TEST_CASE("Final release rejects public-sample unsafe location variants") {
+TEST_CASE("Final release canonicalizes public-sample unsafe location variants") {
     const auto tempDir = MakeTempDir("final-release-unsafe-location");
     nlohmann::json unsafe = pkmn::savegen::input::RedJsonReader::ReadFromFile(
                                 SampleMinimalPath()).document;
@@ -1544,8 +1685,14 @@ TEST_CASE("Final release rejects public-sample unsafe location variants") {
     request.profilePath = ProfilePath();
     request.outputSavePath = tempDir / "unsafe-viridian.sav";
     request.outputReportPath = tempDir / "unsafe-viridian.report.json";
-    CHECK_THROWS_WITH_AS(
-        pkmn::savegen::generation::MinimalSaveGenerator::Generate(request),
-        doctest::Contains("No emulator-validated safe-location profile exists"),
-        std::runtime_error);
+    const auto result = pkmn::savegen::generation::MinimalSaveGenerator::Generate(request);
+    CHECK(result.expectedSemantic.core.mapId == 38);
+    CHECK(result.expectedSemantic.core.x == 3);
+    CHECK(result.expectedSemantic.core.y == 6);
+    CHECK(std::any_of(
+        result.report.warnings.begin(),
+        result.report.warnings.end(),
+        [](const std::string& warning) {
+            return warning.find("canonicalize the start location") != std::string::npos;
+        }));
 }

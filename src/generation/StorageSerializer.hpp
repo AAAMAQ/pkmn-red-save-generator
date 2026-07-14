@@ -31,9 +31,8 @@ public:
         encoding::PrimitiveWriter::WriteU8(
             working.bytes, encoding::Gen1Layout::CurrentBoxByteOff, rawCurrentBox);
 
-        const model::StorageBoxState& selectedBox =
-            storage.boxes[static_cast<std::size_t>(storage.selectedBoxNumber - 1)];
-        WriteBoxBlock(working.bytes, encoding::Gen1Layout::CurrentBoxCacheOff, selectedBox);
+        WriteBoxBlock(
+            working.bytes, encoding::Gen1Layout::CurrentBoxCacheOff, storage.currentBoxCache);
 
         integrity::BoxChecksumWriter::WriteAll(working.bytes);
 
@@ -55,8 +54,8 @@ public:
         MarkRange(working.report,
                   encoding::Gen1Layout::CurrentBoxCacheOff,
                   encoding::Gen1Layout::CurrentBoxCacheOff + encoding::Gen1Layout::CurrentBoxCacheLen - 1U,
-                  "synchronized-duplicate-cache",
-                  "storage.currentBoxCache copied from selected permanent box");
+                  "overwritten-from-target",
+                  "storage.currentBoxCache preserved as the player-visible Bank 1 working box");
         MarkRange(working.report,
                   encoding::Gen1Layout::Bank2BoxChecksumsOff,
                   encoding::Gen1Layout::Bank2BoxChecksumsOff + 5U,
@@ -144,14 +143,12 @@ private:
         if (speciesData == nullptr) {
             throw std::runtime_error("Storage serializer encountered an unsupported species id.");
         }
-        const std::uint8_t storedLevel =
-            PokemonStatCalculator::LevelFromExperience(*speciesData, mon.experience);
         encoding::PrimitiveWriter::WriteU8(
             bytes, base + encoding::Gen1Layout::BoxMonSpeciesRel, mon.speciesId);
         encoding::PrimitiveWriter::WriteU16BigEndian(
             bytes, base + encoding::Gen1Layout::BoxMonCurrentHpRel, mon.currentHp);
         encoding::PrimitiveWriter::WriteU8(
-            bytes, base + encoding::Gen1Layout::BoxMonLevelRel, storedLevel);
+            bytes, base + encoding::Gen1Layout::BoxMonLevelRel, mon.level);
         encoding::PrimitiveWriter::WriteU8(
             bytes, base + encoding::Gen1Layout::BoxMonStatusRel, mon.statusRaw);
         encoding::PrimitiveWriter::WriteU8(

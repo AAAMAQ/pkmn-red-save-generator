@@ -66,7 +66,7 @@ Initial policy by class:
 |---|---|
 | Fixed constants | Write deterministic required values. |
 | Derived fields | Recompute from semantic state rather than inheriting stale bytes. |
-| Duplicated caches | Synchronize from the chosen canonical semantic structure. |
+| Duplicated caches | Preserve each game-visible semantic representation when the game permits divergence; derive a mirror only when the format contract proves it is a true mirror. |
 | Checksums | Always regenerate. |
 | Unsupported semantic regions | Do not silently claim correctness; fail or warn according to milestone policy. |
 | Runtime-heavy regions | Prefer inherited template bytes until the game-proven behavior is understood. |
@@ -91,15 +91,16 @@ Therefore:
 ## Current Milestone 5-6 Canonical Rules
 
 - permanent boxes are written from `decoded.pcStorage`
-- current-box cache is rewritten from the selected permanent box, not copied from input cache bytes
-- generated output requires current-box cache and selected permanent box byte equality; emulator-modified saves may later carry a dirty cache that differs from the permanent selected box after deposit/withdraw flows
-- boxed storage levels may still produce permitted canonical differences when the current Save Genie boxed-level oracle reports implausible values
+- the Bank 1 current-box working copy is written independently from `decoded.currentBoxCache.cache`; it is not replaced by the selected permanent box when the selected-box dirty bit is set
+- the selected-box number and dirty bit are preserved semantically, while the permanent selected box and current working box are each validated for internal structure and operational viability
+- current-box/permanent-box divergence is reported explicitly; it is valid only when the selected-box dirty state and semantic input support that divergence
+- boxed storage current HP, level, status, types, catch-rate byte, moves, trainer ID, experience, Stat Experience, DVs, and PP are preserved from corrected semantic decoding rather than inferred from the wrong record offsets
 - Daycare writes the boxed substructure level from species growth plus experience and writes the Daycare-specific trailing level byte from semantic input
 - named event-state is merged from `events`, `trainerBattles`, `staticBattles`, and `storyProgress`; conflicting flag claims fail generation
 - named event, missable, and script ranges are cleared before semantic values are written so stale template bits cannot leak into owned Milestone 6 ranges
 - unnamed event bits are canonicalized to clear until a named semantic authority exists
 - named story-evidence/world bits are written from `decoded.worldState.storyEvidence`
-- supported locations are fail-closed to the emulator-validated Red's-house baseline
+- unsupported source locations are fail-closed by canonicalizing generated output to the emulator-validated Red's-house baseline with a warning
 - Viridian City Pokemon Center and other non-baseline maps are disabled until full map-runtime bytes have semantic authority, synchronization rules, and emulator proof
 - generation reports include byte provenance for declared write ranges and generation fails on undeclared non-template overlaps
 - dry-run and validation CLI workflows use the same generator pipeline so canonicalization, checksum, range, determinism, and physical-image-isolation behavior can be inspected without writing a final `.sav`

@@ -5,9 +5,9 @@ This document records which Save Genie sources informed Milestone 0 planning for
 ## License And Reuse Status
 
 - Save Genie is our trusted prerequisite codebase.
-- Save Genie currently has no top-level `LICENSE` file visible at repository root.
+- Save Genie has a top-level standard MIT License credited to `MAQ / BiG MAQ Studios`, with the same non-binding stewardship request used by this repository.
 - Reuse inside this repository should remain traceable even when code is ported or rewritten rather than copied directly.
-- Third-party references remain supporting evidence, not automatic authority.
+- Third-party references remain supporting evidence, not automatic authority, and retain their own licenses.
 
 ## Reviewed Prerequisite Sources
 

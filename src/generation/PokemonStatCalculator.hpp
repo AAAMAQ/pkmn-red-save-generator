@@ -107,6 +107,23 @@ public:
         return stats;
     }
 
+    static CalculatedPokemonStats CalculateStoredPokemonStats(
+        const pokemon::SpeciesData& species,
+        const model::StoredPokemonState& mon) {
+        CalculatedPokemonStats stats;
+        stats.maxHp = CalculateStat(
+            species.baseHp, mon.dvs.hp, mon.statExperience.hp, mon.level, true);
+        stats.attack = CalculateStat(
+            species.baseAttack, mon.dvs.attack, mon.statExperience.attack, mon.level, false);
+        stats.defense = CalculateStat(
+            species.baseDefense, mon.dvs.defense, mon.statExperience.defense, mon.level, false);
+        stats.speed = CalculateStat(
+            species.baseSpeed, mon.dvs.speed, mon.statExperience.speed, mon.level, false);
+        stats.special = CalculateStat(
+            species.baseSpecial, mon.dvs.special, mon.statExperience.special, mon.level, false);
+        return stats;
+    }
+
 private:
     static std::uint16_t CalculateStat(std::uint8_t base,
                                        std::uint8_t dv,
@@ -114,19 +131,22 @@ private:
                                        std::uint8_t level,
                                        bool hp) {
         const std::uint32_t basePlusDvTimes2 = static_cast<std::uint32_t>((base + dv) * 2U);
-        const std::uint32_t statExpTerm = FloorSqrt(statExperience) / 4U;
+        // The Gen I game routine uses ceil(sqrt(stat experience)) before the
+        // integer division by four. Using floor is observably one HP/stat low
+        // for values such as 50 and rejects otherwise valid boxed Pokemon.
+        const std::uint32_t statExpTerm = CeilSqrt(statExperience) / 4U;
         const std::uint32_t scaled =
             ((basePlusDvTimes2 + statExpTerm) * static_cast<std::uint32_t>(level)) / 100U;
         const std::uint32_t total = hp ? (scaled + level + 10U) : (scaled + 5U);
         return static_cast<std::uint16_t>(std::min<std::uint32_t>(total, 999U));
     }
 
-    static std::uint32_t FloorSqrt(std::uint16_t value) {
+    static std::uint32_t CeilSqrt(std::uint16_t value) {
         std::uint32_t root = 0;
         while ((root + 1U) * (root + 1U) <= value) {
             ++root;
         }
-        return root;
+        return root * root == value ? root : root + 1U;
     }
 };
 

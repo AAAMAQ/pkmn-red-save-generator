@@ -54,5 +54,5 @@ jobs:
 
       - name: Private path scan
         run: |
-          ! git grep -nE '/Users/|/Desktop|/Documents|abdulqadir' -- . ':!.github/workflows/ci.yml'
+          ! git grep -nE '/Users/|/Desktop|/Documents' -- . ':!.github/workflows/ci.yml'
           ! git grep -nE 'personal rescources|personal resources|full-fixture|controlled-storage|milestone6-red-house|Pokemon\.red\.json|Screenshot 2026' -- . ':!.gitignore' ':!.github/workflows/ci.yml'

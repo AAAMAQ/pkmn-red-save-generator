@@ -4,6 +4,8 @@ Date: 2026-07-07
 
 Status: root cause identified and corrected. Milestone 5 storage validation is complete, and Milestone 6 extended-state validation is complete for the Red's-house safe-location profile. Non-baseline locations remain fail-closed until their full runtime contract is implemented and emulator-proven.
 
+This incident concerns the earlier immediate post-Continue map-runtime corruption. A later completed-playthrough proof uncovered separate text, dirty-current-box, withdrawal-HP, and Hall of Fame semantic defects. Those later findings do not change this incident's root cause or timeline and are documented in `FINAL_MANUAL_VALIDATION_FAILURE_ANALYSIS.md`.
+
 ## Incident Summary
 
 Milestone 5-6 generated a 32768-byte save that passed automated validation, checksum validation, Save Genie reparse, semantic comparison, physical-image independence checks, and deterministic-output checks.
@@ -194,7 +196,7 @@ Affected source:
 
 Correction:
 
-- fail closed to the emulator-validated Red's-house baseline location only
+- canonicalize unsupported source locations to the emulator-validated Red's-house baseline location only
 - remove the Viridian Pokemon Center location profile until full map-runtime state is serialized and emulator-proven
 - remove duplicate Daycare/Hall of Fame clearing from the core serializer
 - split broad runtime ledger ranges into exact written ranges
@@ -434,6 +436,6 @@ This closes the original incident for Milestones 5 and 6 while preserving Viridi
 The combined Final Release Milestone keeps this incident in the public validation model:
 
 - `samples/unsupported-viridian-pokemon-center.red.json` is a schema-valid negative fixture that must be rejected by the CLI.
-- CI runs the unsafe-location rejection workflow.
+- CI runs the unsupported-location canonicalization workflow.
 - release readiness still requires emulator base-load gates for every generated candidate before feature-specific interactions begin.
 - no non-baseline location may be re-enabled from map ID and coordinates alone.

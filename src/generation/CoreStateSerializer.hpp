@@ -102,8 +102,10 @@ public:
         MarkRange(working.report,
                   encoding::Gen1Layout::MapIdOff,
                   encoding::Gen1Layout::PreviousMapOff,
-                  "overwritten-from-target",
-                  "core.safeLocation using supported baseline mapping");
+                  contract.locationWasCanonicalized ? "canonicalized" : "overwritten-from-target",
+                  contract.locationWasCanonicalized
+                      ? "core.safeLocation canonicalized to Red's house second floor"
+                      : "core.safeLocation using supported baseline mapping");
 
         WriteBadges(working, contract.expectedSemantic.core.badgesBitfield);
         WritePokedex(working, contract.expectedSemantic.pokedex);

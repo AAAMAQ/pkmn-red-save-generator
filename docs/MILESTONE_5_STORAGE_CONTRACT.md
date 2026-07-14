@@ -1,21 +1,21 @@
 # Milestone 5 Storage Contract
 
-Status: complete. The load-time corruption trigger has been corrected for the Red's-house storage diagnostic, the corrected diagnostic passed the base-load emulator gate, PC storage viewing passed, and controlled deposit, withdraw, box switching, game-triggered save, normal save, post-save reparse, cache behavior, and checksum validation passed.
+Status: the Milestone 5 controlled storage workflow remains complete for its validated fixtures. A later completed-playthrough proof exposed an additional current-working-box authority bug and boxed-field parser bug. Those models are corrected automatically; the completed-playthrough candidate awaits a focused emulator retest.
 
 ## Authority Rule
 
-Storage generation uses one semantic authority:
+Storage generation preserves two related semantic representations:
 
 1. `decoded.pcStorage.boxes`
 2. `decoded.currentBoxCache.selectedBoxNumber`
-3. generator-owned synchronization of the current-box cache from the selected permanent box
+3. `decoded.currentBoxCache.cache`
 
-The input `decoded.currentBoxCache.cache` is validation material, not write authority. If it disagrees with the selected permanent box, generation fails conservatively.
+The 12 permanent boxes are authoritative for permanent Bank 2/3 state. The Bank 1 cache is authoritative for the currently selected player-visible working box. They may legitimately differ until the game commits the working box during a box switch. Generation validates and serializes both; it never discards a divergent working box by copying the permanent selected box over it.
 
 ## Owned Structures
 
 - all 12 permanent boxes
-- selected box number and changed flag
+- selected box number and has-changed-boxes-before flag
 - current-box cache payload
 - per-box checksums
 - bank 2 all-box checksum
@@ -34,13 +34,15 @@ For every box:
 For every boxed Pokemon:
 
 - species, current HP, status, types, catch-rate byte, moves, PP, trainer ID, experience, Stat Experience, and DVs are written from semantic input
-- boxed level is canonicalized from species growth rate plus experience
+- boxed level is written from the stored semantic field and must agree with species growth rate plus experience
 - party-only calculated stats are not written into boxed records
 
 ## Current-Box Cache Rule
 
-- permanent selected box is authoritative
-- current-box cache is rewritten to match it byte-for-byte
+- the selected number identifies both representations
+- the current working-box cache is serialized from its own semantic model
+- equality is reported when present but is not required
+- divergent source state remains divergent in generated output
 - the dummy cache is never inherited as authoritative output state
 
 ## Validation Rules
@@ -54,11 +56,12 @@ Generation rejects:
 - non-encodable OT names or nicknames
 - unsupported species or moves
 - invalid DV or PP ranges
-- input cache disagreement with the selected permanent box
+- malformed current-box cache structure, such as impossible counts or an invalid selected-box reference
+- stored records that cannot derive a nonzero withdrawal maximum HP
+- level/experience inconsistency
+- missing cache semantics for the selected working box
 
-## Known Canonical Differences
-
-The current Save Genie oracle can emit implausible boxed-level values for a handful of fixture records. The generator therefore treats boxed `level` as a permitted canonical difference and uses `experience` as the authoritative stored progression field.
+Stored current HP is preserved independently. If a source has an externally edited value above the currently derived maximum, the CLI reports it instead of silently clamping it. The completed-playthrough fixture contains one such Golbat. This warning is distinct from the fixed zero-HP data-loss bug.
 
 ## Acceptance Evidence Required
 
@@ -66,7 +69,7 @@ Milestone 5 is not complete until:
 
 - a corrected generated save passes the base-load emulator gate with no immediate corruption after Continue
 - generated storage reparses correctly in Save Genie
-- current-box cache matches the selected permanent box
+- current-box cache is structurally valid and its equality or divergence from permanent storage is classified correctly
 - all per-box and bank-level checksums validate
 - storage survives emulator withdraw, deposit, box switch, and save-again flow
 
@@ -105,4 +108,17 @@ The Milestone 6 save-again validation deposited `PEGGY` / `PIDGEY` into selected
 - dirty flag set
 - main, Bank 2, Bank 3, and all 12 per-box checksums valid
 
-This reinforces the storage authority rule: freshly generated saves synchronize the selected permanent box and current-box cache, while emulator-modified saves may keep the active selected box in the dirty cache until the game flushes it through a box-switch flow.
+This observation originally led to a too-narrow generator rule. The completed-playthrough source itself contains an empty permanent Box 12 and a 20-Pokemon current working Box 12. The corrected authority rule therefore preserves divergence at generation time, not only after emulator modification. The raw high bit is documented as `hasChangedBoxesBefore`; it is not permission to discard or ignore the working copy.
+
+## Completed-Playthrough Corrective Evidence
+
+The first completed-playthrough candidate replaced its 20-Pokemon Bank 1 Box 12 with empty permanent Box 12. Manual testing exposed the loss immediately on entering Bill's PC. The corrected candidate preserves:
+
+- raw selected-box byte `0x8B`;
+- selected box 12;
+- permanent Box 12 count 0;
+- current working Box 12 count 20;
+- all 12 valid permanent structures and checksums;
+- valid, independently checked current working-box structure.
+
+The same investigation corrected boxed-record decoding: current HP is at `+0x01..+0x02`, stored level at `+0x03`, status at `+0x04`, types at `+0x05..+0x06`, and catch rate at `+0x07`. The original Box 1 Dugtrio stores HP 201; the failed candidate wrote zero; the corrected candidate writes 201.

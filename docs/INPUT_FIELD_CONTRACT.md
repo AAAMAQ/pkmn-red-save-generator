@@ -57,7 +57,7 @@ These sections are the intended source of gameplay state:
 | `decoded.inventory` | required when supported | Bag and PC item storage. |
 | `decoded.party` | required when supported | Party count, species, records, OT names, nicknames. |
 | `decoded.pcStorage` | required when supported | Permanent boxes 1-12. |
-| `decoded.currentBoxCache` | required when supported | Current-box synchronization target. |
+| `decoded.currentBoxCache` | required when supported | Selected number, box-history flag, and independent player-visible Bank 1 working box. |
 | `decoded.daycare` | required when supported | Daycare occupancy and stored mon. |
 | `decoded.hallOfFame` | required when supported | Hall of Fame records or intentional clearing. |
 | `decoded.events` | required when supported | Named event-bit state. |
@@ -81,14 +81,15 @@ Implemented generator-owned sections now include:
 - `decoded.options`
 - `decoded.moneyAndCoins`
 - `decoded.playtime`
-- `decoded.location` only when it matches the emulator-validated Red's-house baseline
+- `decoded.location` as semantic evidence; non-baseline source locations are canonicalized to the emulator-validated Red's-house baseline
 - `decoded.badges`
 - `decoded.pokedex`
 - `decoded.inventory`
 - `decoded.party`
 - `decoded.pcStorage`
 - `decoded.currentBoxCache.selectedBoxNumber`
-- `decoded.currentBoxCache.boxChangedFlag`
+- `decoded.currentBoxCache.hasChangedBoxesBefore` (`boxChangedFlag` remains a draft-schema alias)
+- `decoded.currentBoxCache.cache`
 - `decoded.daycare`
 - `decoded.hallOfFame`
 - `decoded.events`
@@ -103,9 +104,11 @@ Implemented generator-owned sections now include:
 - named fields under `decoded.worldState.storyEvidence`
 - a restricted `decoded.runtimeState` subset that is safe for the Red's-house baseline only
 
-The input `decoded.currentBoxCache.cache` is consumed only as a validation check. The generator rewrites cache bytes from permanent storage authority instead of trusting the input cache as the write source.
+`decoded.pcStorage.boxes` owns permanent Bank 2/3 data. `decoded.currentBoxCache.cache` separately owns the selected player-visible Bank 1 working box. Generated saves preserve valid divergence; neither representation is silently substituted for the other.
 
-Generated saves require the selected permanent box and current-box cache to be synchronized. Emulator-modified post-save files may show a dirty selected-box cache that differs from the permanent selected box after normal gameplay deposit operations; that state is validation evidence for the game, not a generation input authority.
+Pokemon text objects prefer `losslessValue`, `nameLossless`, or `nicknameLossless` when available. Display values remain human-readable, while tokens such as `<DOT>`, `<PERIOD>`, and `<0xHH>` preserve byte distinctions. Unsupported Unicode fails validation rather than becoming a fallback glyph.
+
+Stored Pokemon input now requires the actual box fields: current HP, stored level, status, stored types, catch-rate byte, moves, trainer ID, experience, Stat Experience, DVs, PP, OT, and nickname. Party-only calculated stats are not expected in box records.
 
 Milestone 6 extended-state requirements:
 
@@ -115,8 +118,8 @@ Milestone 6 extended-state requirements:
 - event flags are written only from named semantic sources; unnamed event bits are canonicalized to clear
 - occupied Daycare requires a valid deposited Pokemon and a semantic deposited level in `1..100`
 - named story-evidence/world bits are consumed from `decoded.worldState.storyEvidence`
-- raw non-baseline location data remains rejected unless a complete safe-location profile exists
-- the completed Milestone 6 Red's-house validation path confirmed Hall of Fame, event, script, hidden-object, missable, visited-town, and story-evidence semantics through emulator save-again and Save Genie reparse
+- raw non-baseline location data is not preserved; the generated output canonicalizes to Red's house second floor unless a complete safe-location profile exists
+- Hall of Fame input must preserve every active slot's party order, internal species ID, level, and lossless nickname; entry count alone is insufficient
 
 ## Conversion Model Policy
 

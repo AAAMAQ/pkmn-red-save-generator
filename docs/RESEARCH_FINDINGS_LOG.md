@@ -48,8 +48,9 @@
 
 ### License finding
 
-- No top-level `LICENSE` file was found at either repository root.
-- Final license selection remains pending for the generator.
+- The generator and Save Genie repositories use the standard MIT License under the project identity `MAQ / BiG MAQ Studios`.
+- Both licenses include the same non-binding stewardship request supporting education, research, archival preservation, and retro-development. The request does not alter the MIT permissions.
+- Save Genie remains the trusted read-only prerequisite during generator work. Direct third-party reuse must remain traceable and must follow each third party's own license.
 
 ## 2026-06-29
 
@@ -224,7 +225,7 @@
 ### Milestone 5 storage findings
 
 - The generator now writes all 12 permanent PC boxes from semantic input instead of inheriting dummy storage banks.
-- The selected permanent box is copied into the Bank 1 current-box cache.
+- Historical Milestone 5 policy copied the selected permanent box into the Bank 1 current-box cache. Completed-playthrough evidence later disproved this as a universal rule; see the 2026-07-14 correction.
 - Generated outputs now have:
   - valid main checksum
   - valid bank 2 all-box checksum
@@ -355,7 +356,7 @@
 - Specific mismatched map/runtime fields include `0x2613`, `0x2615`, `0x2616`, `0x2618`, `0x261A`, `0x265A`, `0x278D`, `0x27D1`, `0x27D2`, `0x29E8`, and `0x2CDC`.
 - The strongest current finding is unsafe non-baseline location admission without a complete map-runtime serialization contract.
 - Corrective action:
-  - the location validator now fails closed to the emulator-validated Red's-house baseline only
+  - the location policy now canonicalizes unsupported source locations to the emulator-validated Red's-house baseline only
   - direct generation from the full private Viridian Pokemon Center fixture is rejected until full map-runtime serialization is implemented and emulator-proven
   - a byte-provenance ledger now annotates generated report ranges with before/after evidence
   - generation now rejects undeclared overlapping non-template write ranges
@@ -427,7 +428,7 @@
 
 ### Milestone 6 Red's-house extended-state automated validation
 
-- The raw private full semantic fixture still fails closed because its non-baseline location is not emulator-proven.
+- The raw private full semantic fixture is accepted by canonicalizing its non-baseline location to Red's house second floor because that source location is not emulator-proven.
 - A Red's-house projection with full extended semantics generated a `32768` byte save with valid main, Bank 2, and Bank 3 checksums.
 - The generated save SHA-256 for the current local validation output is `72bc7b91e4665858b6f7ad4f8f9b96f68b61862739e2d3877607f2b6c154bb55`.
 - Generation with original, removed, and replaced target `physicalImage` produced byte-identical `.sav` outputs.
@@ -460,8 +461,8 @@ Proven findings:
 
 Implementation decisions:
 
-- keep generated-save selected-box cache synchronized with the permanent selected box
-- allow explicit dirty-cache validation only for emulator-modified saves
+- preserve the current working box independently when semantic input contains a valid divergent selected-box state
+- validate permanent and current working copies separately and report their relationship explicitly
 - keep Viridian Pokemon Center generation disabled until complete map-runtime serialization exists
 - document gameplay drift categories rather than treating normal travel, playtime, and runtime/cache changes as generator defects
 
@@ -470,7 +471,39 @@ Open questions:
 - broader map-runtime contracts for non-baseline locations
 - direct occupied-Daycare deposit/withdraw validation with a dedicated fixture
 - broad representative-save coverage for event-heavy and location-heavy states
-- whether boxed-level oracle anomalies should be fixed in Save Genie or remain generator-side permitted canonical differences
+- broader real-save corpus coverage for unusual but structurally valid boxed HP values
+
+## 2026-07-14 - First Completed-Playthrough Proof Correction
+
+### Proven findings
+
+- The first automated semantic-sufficiency pass was a false positive for four operational semantics even though checksums, Save Genie reparse, determinism, and physical-image isolation passed.
+- Gen I text byte `0xF2` is a valid dot glyph in the affected OT field. Lossy fallback decoding changed it to `?`; lossless token `<DOT>` now preserves it distinctly from `<PERIOD>` (`0xE8`).
+- The source selected-box byte is `0x8B`: selected Box 12 plus the high-bit box-history state. Permanent Box 12 is empty while the Bank 1 current working Box 12 contains 20 Pokemon that the game displays.
+- The Bank 1 current box is operational player state and cannot always be regenerated from permanent selected storage.
+- A boxed Pokemon record is exactly `0x21` bytes. It stores current HP at `+0x01..+0x02`, level at `+0x03`, status at `+0x04`, types at `+0x05..+0x06`, and catch rate at `+0x07`.
+- Reading boxed level from `+0x21` was an out-of-record parser error. Forcing boxed current HP to zero caused the game to preserve zero HP when the Pokemon was withdrawn.
+- The exact Gen I stat term uses `ceil(sqrt(stat experience)) / 4`; floor square root can understate a stat by one.
+- Hall of Fame teams use six fixed `0x10`-byte slots in each `0x60`-byte record. Charizard uses internal species ID `0xB4`, not National Dex number 6 in the stored record.
+- Rejecting internal IDs above 151 removed Charizard and compressed team vectors, which shifted later slots and produced invalid `?? BIRD` displays.
+
+### Implementation decisions
+
+- Preserve display and lossless text values; never silently encode an unknown fallback.
+- Serialize permanent storage and the current working box independently.
+- Validate every boxed Pokemon for structural and withdrawal viability.
+- Validate Hall of Fame by entry and fixed slot, including internal-ID mapping and text boundaries.
+- Keep parser reparse as evidence, but require independent structural and operational invariants before semantic acceptance.
+
+### Emulator status
+
+- The first candidate's broad boot, traversal, inventory, Daycare, PC access, battle, and save-again results remain valid evidence.
+- The corrected automated candidate passes all strengthened gates but requires a focused second emulator pass before the final semantic-sufficiency conclusion can be restored.
+
+### Open questions
+
+- Whether the game interprets the selected-box high bit only as box-history state or also uses it in additional save-flow decisions.
+- How externally edited boxed current HP above independently derived maximum HP should be surfaced in future public policy beyond preserving it with a warning.
 
 ### Final release hardening findings
 

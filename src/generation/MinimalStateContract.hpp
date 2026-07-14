@@ -30,7 +30,7 @@ struct SupportedLocation {
 struct MinimalStateContract {
     model::RedSemanticState expectedSemantic;
     SupportedLocation supportedLocation;
-    bool locationStrictBaseline = true;
+    bool locationWasCanonicalized = false;
     std::vector<std::string> warnings;
 };
 
@@ -40,7 +40,6 @@ public:
         MinimalStateContract contract;
         contract.expectedSemantic = target;
         contract.supportedLocation = ResolveSupportedLocation(target);
-        contract.locationStrictBaseline = (contract.supportedLocation.mapId == 38);
 
         if (target.core.mapId != contract.supportedLocation.mapId ||
             target.core.x != contract.supportedLocation.x ||
@@ -49,18 +48,31 @@ public:
             target.core.xBlockCoord != contract.supportedLocation.xBlock ||
             target.core.yBlockCoord != contract.supportedLocation.yBlock) {
             std::ostringstream oss;
-            oss << "The current implemented location validator supports only explicitly verified safe map states; received map="
+            oss << "Source location map="
                 << static_cast<int>(target.core.mapId)
                 << " x=" << static_cast<int>(target.core.x)
                 << " y=" << static_cast<int>(target.core.y)
                 << " previousMap=" << static_cast<int>(target.core.previousMapId)
                 << " xBlock=" << static_cast<int>(target.core.xBlockCoord)
-                << " yBlock=" << static_cast<int>(target.core.yBlockCoord) << ".";
-            throw std::runtime_error(oss.str());
+                << " yBlock=" << static_cast<int>(target.core.yBlockCoord)
+                << " is outside the emulator-validated safe-location profile. Generated output will canonicalize the start location to "
+                << contract.supportedLocation.label << ".";
+            contract.warnings.push_back(oss.str());
+            contract.locationWasCanonicalized = true;
+            contract.expectedSemantic.core.mapId = contract.supportedLocation.mapId;
+            contract.expectedSemantic.core.x = contract.supportedLocation.x;
+            contract.expectedSemantic.core.y = contract.supportedLocation.y;
+            contract.expectedSemantic.core.previousMapId = contract.supportedLocation.previousMap;
+            contract.expectedSemantic.core.xBlockCoord = contract.supportedLocation.xBlock;
+            contract.expectedSemantic.core.yBlockCoord = contract.supportedLocation.yBlock;
         }
 
         PartyValidator::ValidateOrThrow(target.party);
         StorageValidator::ValidateOrThrow(target.storage);
+        if (HasDirtyCurrentBoxCacheDisagreement(target.storage)) {
+            contract.warnings.push_back(
+                "Input current-box cache differs from the selected permanent box. This is a valid Gen I working-box state: generation preserves the Bank 1 cache independently, and the game commits it to permanent storage when the player changes boxes.");
+        }
         StorageValidator::ValidateDaycareOrThrow(target.daycare);
         HallOfFameSerializer::ValidateOrThrow(target.hallOfFame);
         ExtendedWorldSerializer::ValidateOrThrow(target);
@@ -96,7 +108,7 @@ public:
         contract.warnings.push_back(
             "Permanent PC storage is now generator-owned; all 12 boxes, the selected-box cache, per-box checksums, and bank all-box checksums must be regenerated from semantic input.");
         contract.warnings.push_back(
-            "The current location validator fails closed to the emulator-validated Red's house baseline. Non-baseline locations are paused after the Milestone 5-6 load-time corruption incident.");
+            "Unsupported source locations are canonicalized to the emulator-validated Red's house baseline rather than guessed. Broader location preservation remains paused after the Milestone 5-6 load-time corruption incident.");
         contract.warnings.push_back(
             "The generator currently owns trainer/core fields, party, permanent storage, selected-box cache, badges, Pokedex, bag inventory, PC item inventory, Daycare, Hall of Fame, named event/story/trainer/static flags, scripts, missables, hidden objects, visited towns, and the Red's-house world-evidence subset.");
         return contract;
@@ -133,16 +145,19 @@ private:
             return kBaselineLocation;
         }
 
-        std::ostringstream oss;
-        oss << "No emulator-validated safe-location profile exists for map="
-            << static_cast<int>(target.core.mapId)
-            << " x=" << static_cast<int>(target.core.x)
-            << " y=" << static_cast<int>(target.core.y)
-            << " previousMap=" << static_cast<int>(target.core.previousMapId)
-            << " xBlock=" << static_cast<int>(target.core.xBlockCoord)
-            << " yBlock=" << static_cast<int>(target.core.yBlockCoord)
-            << ". Only the Red's house second-floor baseline is enabled until the full map-runtime cluster is serialized and emulator-proven.";
-        throw std::runtime_error(oss.str());
+        return kBaselineLocation;
+    }
+
+    static bool HasDirtyCurrentBoxCacheDisagreement(const model::StorageState& storage) {
+        if (!storage.hasCurrentBoxCache ||
+            storage.selectedBoxNumber < 1 ||
+            storage.selectedBoxNumber > static_cast<int>(storage.boxes.size())) {
+            return false;
+        }
+
+        const auto& selected =
+            storage.boxes[static_cast<std::size_t>(storage.selectedBoxNumber - 1)];
+        return storage.currentBoxCache != selected;
     }
 
     static void ValidateInventoryList(const std::vector<model::InventoryItem>& items,

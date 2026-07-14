@@ -1,6 +1,6 @@
 # Pkmn Red Save Generator
 
-Status: v1.0.0 release validation complete for the supported Pokemon Red profile. Milestones 0-6 and the combined Final Release Milestone, merging the original Milestones 7-9, are complete.
+Status: v1.0.0 is the published historical baseline. A completed-playthrough manual proof subsequently exposed text, current-working-box, boxed-HP, and Hall of Fame defects. Corrective code and automated validation pass, and a focused second emulator retest confirmed all four corrections. Final semantic-sufficiency acceptance still awaits a normal save/shutdown/reload cycle and post-emulator battery-save analysis.
 
 This project generates a new Pokemon Red `.sav` from semantic `.red.json` data produced by the completed Pokemon Red Save Genie. It is a semantic save generator, not an archival byte-for-byte reconstructor.
 
@@ -9,10 +9,10 @@ The target `.red.json` `physicalImage` is deliberately ignored as generation aut
 ## Project Boundary
 
 - Writable project: this repository.
-- Read-only prerequisite: sibling `Pkmn Red Save Genie` repository.
+- Independent prerequisite: sibling `Pkmn Red Save Genie` repository. Parser-model corrections are maintained and reviewed in that repository rather than copied into the generator.
 - Template resource: `Dummy Save/`.
 
-The Save Genie is the trusted read-only parser and research oracle. The generator is separate:
+The Save Genie is the independent parser and research oracle. The generator is separate:
 
 - Save Genie: decode, analyze, and archival reconstruction using preserved raw bytes.
 - Save Generator: deterministic semantic synthesis without using the target `physicalImage`.
@@ -45,7 +45,7 @@ Implemented and emulator-validated through Milestone 6:
 - persistent script bytes exposed by Save Genie
 - Red's-house safe runtime/world subset
 
-Final release emulator validation confirmed normal Continue/load behavior, movement, menus, trainer/party/Pokedex/Bag/inventory display, broad travel through doors, stairs, warps, scripts, and map transitions, normal save-again, emulator shutdown, valid post-save checksums, and successful Save Genie reparse. Earlier milestone evidence covers PC storage interaction and Hall of Fame viewing; final validation did not directly inspect every subsystem again.
+Earlier milestone validation confirmed normal Continue/load behavior, movement, menus, trainer/party/Pokedex/Bag/inventory display, broad travel through doors, stairs, warps, scripts, map transitions, PC interaction, and normal save-again. The later completed-playthrough proof showed that parser acceptance and checksums were insufficient: operational defects remained in a valid punctuation glyph, divergent current-box state, boxed current HP, and Hall of Fame members. The corrected model is documented in `docs/FINAL_MANUAL_VALIDATION_FAILURE_ANALYSIS.md`.
 
 ## Safety Rules
 
@@ -55,7 +55,7 @@ Final release emulator validation confirmed normal Continue/load behavior, movem
 - The dummy template is never modified in place.
 - Outputs are gameplay-equivalent and structurally valid, not byte-identical to the source save.
 - Unsupported non-empty state must fail or be documented; it must not be silently discarded.
-- Non-baseline locations fail closed unless their full runtime state is emulator-proven.
+- Non-baseline source locations are canonicalized to the emulator-proven Red's house second-floor start location unless their full runtime state is later implemented and emulator-proven.
 
 ## Safe Location Policy
 
@@ -63,7 +63,7 @@ Currently supported generated start location:
 
 - Red's house, second floor.
 
-Viridian City Pokemon Center remains a regression case. A previous generated save using map ID and coordinates without a complete runtime-state contract corrupted immediately after selecting Continue. The generator now rejects that raw source location until the full map-runtime cluster is owned and emulator-validated.
+Viridian City Pokemon Center remains a regression case. A previous generated save using map ID and coordinates without a complete runtime-state contract corrupted immediately after selecting Continue. The generator now canonicalizes unsupported raw source locations to Red's house second floor and reports the canonicalization, rather than guessing unsafe runtime state.
 
 ## Build
 
@@ -138,10 +138,23 @@ Validate a generated save:
 build/pkmn-red-save-generator validate-save --input-save output.sav
 ```
 
-Validate an emulator-modified save whose selected box cache is intentionally dirty:
+Validate an emulator-modified save with a current working box that differs from permanent storage:
 
 ```sh
-build/pkmn-red-save-generator validate-save --input-save post-save.sav --allow-dirty-current-box
+build/pkmn-red-save-generator validate-save --input-save post-save.sav
+```
+
+The two box representations are validated independently. Legitimate divergence is reported but does not require an override flag.
+
+Validate operational structures and inspect storage:
+
+```sh
+build/pkmn-red-save-generator validate-text --text 'Lt<DOT>Ash'
+build/pkmn-red-save-generator validate-boxes --input input.red.json
+build/pkmn-red-save-generator validate-pokemon-operability --input input.red.json
+build/pkmn-red-save-generator validate-hall-of-fame --input input.red.json
+build/pkmn-red-save-generator inspect-box --input input.red.json --box 12 --current-cache
+build/pkmn-red-save-generator inspect-pokemon --input input.red.json --box 1 --slot 2
 ```
 
 Check deterministic output:
@@ -169,7 +182,25 @@ Compare target semantics with a Save Genie reparse:
 ```sh
 build/pkmn-red-save-generator compare-semantics \
   --target-json input.red.json \
-  --reparsed-json generated.red.json
+  --reparsed-json generated.red.json \
+  --report semantic-comparison.json \
+  --markdown semantic-comparison.md
+```
+
+Compare physical images or analyze an emulator save cycle:
+
+```sh
+build/pkmn-red-save-generator compare-physical \
+  --original original.sav \
+  --generated generated.sav \
+  --report physical-comparison.json \
+  --markdown physical-comparison.md
+
+build/pkmn-red-save-generator analyze-post-emulator \
+  --before generated.sav \
+  --after generated-post-emulator.sav \
+  --report post-emulator-comparison.json \
+  --markdown post-emulator-comparison.md
 ```
 
 Generate from public samples:
@@ -186,13 +217,13 @@ build/pkmn-red-save-generator generate samples/representative.red.json /tmp/repr
 build/pkmn-red-save-generator validate-save --input-save /tmp/representative.sav
 ```
 
-Confirm unsafe-location rejection:
+Confirm unsupported-location canonicalization:
 
 ```sh
 build/pkmn-red-save-generator inspect samples/unsupported-viridian-pokemon-center.red.json
 ```
 
-That command is expected to fail because non-baseline locations are rejected unless their full runtime state is implemented and emulator-proven.
+That command is expected to pass with a warning that the generated output will start in Red's house second floor.
 
 ## Validation Guarantees
 
@@ -206,21 +237,24 @@ For currently supported fields, validation covers:
 - main checksum
 - per-box checksums
 - Bank 2 and Bank 3 all-box checksums
-- Save Genie reparse
-- field-aware semantic comparison
+- Save Genie reparse plus independent binary structure checks
+- field-aware comparison of complete party, storage/cache, and Hall of Fame contents
+- lossless text-token validation without fallback substitution
+- boxed-Pokemon withdrawal viability and exact Gen I stat derivation
 - emulator load and save-again validation for Milestones 2-6
-- final release emulator validation with public representative and private full-state candidates
-- public sample generation, checksum validation, deterministic output, physical-image isolation, and unsafe-location rejection in CI
+- manual emulator validation, including a recorded false-positive proof that now remains a permanent regression case
+- public sample generation, checksum validation, deterministic output, physical-image isolation, and unsupported-location canonicalization in CI
 
 The game displays trainer IDs as five digits. The final private validation save uses numeric trainer ID `257` (`0x0101`), displayed in-game as `00257`.
 
 ## Known Non-Guarantees
 
 - The generator does not claim byte-identical reconstruction.
-- Unsupported locations are rejected rather than guessed.
+- Unsupported locations are canonicalized to Red's house second floor with an explicit warning rather than guessed.
 - Broader map-runtime serialization is deferred.
 - The public CI does not run an emulator or the private Save Genie oracle workflow.
 - Public samples are synthetic validation inputs; private saves and emulator evidence are intentionally not committed.
+- The corrected completed-playthrough candidate passed the focused emulator checks for punctuation, current Box 12 state, boxed-Pokemon withdrawal HP, and Hall of Fame contents. A post-emulator save was not produced during that focused check, so save-again durability and post-save reparse remain pending.
 
 ## Documentation
 
@@ -234,7 +268,23 @@ Important project documents:
 - `docs/MILESTONE_5_STORAGE_CONTRACT.md`
 - `docs/MILESTONE_6_EXTENDED_STATE_CONTRACT.md`
 - `docs/MILESTONE_5_6_LOAD_CORRUPTION_INCIDENT.md`
+- `docs/FINAL_MANUAL_VALIDATION_FAILURE_ANALYSIS.md`
+- `docs/FINAL_SEMANTIC_SUFFICIENCY_PROOF.md`
 - `docs/SEMANTIC_EQUIVALENCE_CONTRACT.md`
 - `docs/CANONICALIZATION_POLICY.md`
 - `docs/KNOWN_LIMITATIONS.md`
 - `samples/README.md`
+
+## License
+
+Original project code and project-authored documentation are available under
+the MIT License. Copyright (c) 2026 MAQ / BiG MAQ Studios. See `LICENSE`.
+
+The license includes a non-binding stewardship note asking users to keep this
+work oriented toward education, research, archival preservation, and
+retro-development, and not merely repackage it as software for sale. This is a
+personal request, not an additional restriction on the MIT permissions.
+
+Vendored and third-party materials retain their own licenses and attribution.
+
+This is an independent educational, research, archival, and preservation project. Pokemon, Nintendo, Game Freak, Creatures, and related names, trademarks, and copyrighted materials belong to their respective owners. This project does not distribute ROMs, emulator binaries, or copyrighted game assets.

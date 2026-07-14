@@ -169,7 +169,7 @@ target .red.json
   - deterministic party generation that remains independent of target `physicalImage`
 - Milestone 5 and Milestone 6 own:
   - all 12 permanent PC boxes
-  - selected-box byte and current-box cache synchronization
+  - selected-box byte and the separately modeled Bank 1 current-box working copy
   - per-box and bank-level storage checksums
   - daycare occupancy and stored Pokemon
   - Daycare-specific deposited level byte
@@ -179,7 +179,9 @@ target .red.json
   - persistent script bytes, missable objects, hidden items, hidden coins, and visited towns
 - Milestone 6 extended-state generation clears owned event, missable, and script ranges before writing target semantics to prevent template-state leakage.
 - Milestone 6 has passed emulator validation for the Red's-house safe-location profile, including load, travel, Hall of Fame viewing, save-again, Save Genie reparse, and expected-drift analysis.
-- Generated saves must synchronize the selected permanent box and current-box cache. Emulator-modified saves may legitimately have the selected box dirty flag set and a current-box cache that differs from the permanent selected box until the game flushes the active box during box switching.
+- Permanent storage and the Bank 1 current-box working copy are separate semantic representations. When the selected-box dirty bit is set, generation preserves a valid input working copy even when it differs from the selected permanent box; comparison reports that divergence instead of silently canonicalizing it away.
+- Boxed records are validated with an independently checked `0x21`-byte layout and must derive a nonzero withdrawal stat block. Hall of Fame records are validated as six fixed `0x10`-byte slots per `0x60`-byte team using internal Generation I species IDs.
+- Text fields retain a display form and a lossless token form so valid source bytes cannot silently pass through an encoder fallback.
 - The largest remaining architecture gap is location safety:
   - the validator now accepts only the emulator-validated Red's-house baseline
   - Viridian City Pokemon Center was disabled after immediate post-Continue corruption

@@ -34,6 +34,7 @@
 
 ### D-007: Mark license status as pending
 
+- Status: superseded by D-038
 - Decision: add `LICENSE-PENDING.md` instead of selecting a final license prematurely
 - Reason: neither repository currently exposes a clear top-level license file, and reuse policy should stay explicit
 
@@ -101,11 +102,13 @@
 
 ### D-020: Make the selected permanent box the only storage write authority
 
+- Status: superseded by D-041 after completed-playthrough emulator evidence
 - Decision: `decoded.pcStorage` plus `decoded.currentBoxCache.selectedBoxNumber` define storage output, and the current-box cache is rewritten from the selected permanent box
 - Reason: this prevents stale or dummy cache bytes from surviving in generated output
 
 ### D-021: Canonicalize boxed storage level from experience when oracle decode is implausible
 
+- Status: superseded after the boxed-record parser was corrected; stored level at `+0x03` is now preserved
 - Decision: boxed storage `level` may be treated as a permitted canonical difference when Save Genie reports implausible source values
 - Reason: the current Save Genie boxed-level decode is not yet trustworthy for every real fixture record, while `experience` remains stable and semantically authoritative
 
@@ -165,6 +168,7 @@
 
 ### D-032: Treat dirty selected-box cache as valid post-gameplay state only
 
+- Status: superseded by D-041; valid divergent working-box state can already exist in source semantic input
 - Decision: generated saves must synchronize the selected permanent box and current-box cache, but validation of emulator-modified saves may accept a dirty current-box cache when the selected-box dirty flag is set
 - Reason: the Milestone 6 post-save artifact showed `PEGGY` / `PIDGEY` in the Box 11 current-box cache while permanent Box 11 remained empty, with all per-box and bank checksums valid; this is coherent Gen I behavior after deposit without box switching
 
@@ -188,7 +192,48 @@
 - Decision: CLI version and release docs may identify the candidate as `1.0.0`, but the Git tag must wait for targeted emulator candidates and private oracle validation
 - Reason: the Milestone 5-6 corruption incident proved parser acceptance, checksums, and semantic comparison are insufficient without emulator load/save-again evidence
 
-### D-037: Close the combined Final Release Milestone
+## 2026-07-13
+
+### D-037: Canonicalize unsupported source locations
+
+- Decision: unsupported source locations are accepted by canonicalizing the generated start location to Red's house second floor and emitting an explicit warning
+- Reason: the semantic-sufficiency proof should preserve supported gameplay state without pretending unsupported runtime map clusters are safe; Red's house second floor is the only emulator-proven generated start location
+- Consequence: location preservation is not currently part of the supported semantic-equivalence claim for non-baseline source saves
+
+### D-038: Adopt MIT License
+
+- Decision: replace `LICENSE-PENDING.md` with the standard MIT License, credited to `MAQ / BiG MAQ Studios`, and include a clearly non-binding project-stewardship request
+- Reason: the owner approved broad MIT licensing while asking users to keep the work focused on education, research, archival preservation, and retro-development rather than merely repackaging it for sale
+- Consequence: all MIT permissions remain legally unchanged, including commercial permissions; the stewardship wording is a personal request rather than an additional license restriction. Pokemon-related intellectual property remains owned by its respective rights holders and is not distributed by this project
+
+### D-039: Close the combined Final Release Milestone
 
 - Decision: accept the combined original Milestones 7-9 release milestone after final targeted emulator validation, post-save Save Genie reparses, checksum validation, deterministic-output proof, physical-image isolation proof, public sample validation, and fresh-copy build validation
 - Reason: both final emulator candidates loaded and saved normally, post-save SRAM files reparsed with valid checksums, unsupported locations remain fail-closed, and the corrected trainer-ID evidence resolves the final ambiguity
+
+## 2026-07-14
+
+### D-040: Invalidate the first semantic-sufficiency acceptance result
+
+- Decision: retain the first automated reports as historical evidence, but withdraw their success conclusion after manual emulator testing exposed text loss, missing player-visible current-box state, zero-HP withdrawal, and malformed Hall of Fame teams
+- Reason: checksum validity, Save Genie reparse, and a comparator built on the same model did not independently prove operational gameplay equivalence
+
+### D-041: Preserve the Bank 1 current working box independently
+
+- Decision: supersede D-020 and the generated-save restriction in D-032; semantic generation now writes the permanent boxes and `decoded.currentBoxCache.cache` as separate structures and preserves the selected-box dirty bit
+- Reason: the completed source fixture has selected byte `0x8B`, an empty permanent Box 12, and a populated 20-Pokemon Bank 1 working Box 12. Canonicalizing the cache from permanent Box 12 erased player-visible state
+
+### D-042: Use lossless tokens for ambiguous Generation I text bytes
+
+- Decision: expose a lossless text representation alongside display text and encode tokens such as `<DOT>`, `<PERIOD>`, and `<0xHH>` without fallback substitution
+- Reason: source byte `0xF2` renders as a period but was previously decoded as `?` and regenerated as a different question-mark byte
+
+### D-043: Require operational validators independent of parser symmetry
+
+- Decision: generation and comparison must validate box boundaries, withdrawal viability, internal species mapping, complete Hall of Fame slots, text termination, and write provenance in addition to checksums and Save Genie reparse
+- Reason: the first parser and generator shared the same boxed-record and Hall of Fame species assumptions, allowing malformed gameplay behavior to compare as equal
+
+### D-044: Keep the corrected proof provisional until a second emulator pass
+
+- Decision: the corrected automated result may be reported only as awaiting manual retest; do not restore the semantic-sufficiency conclusion or publish a new release result until the corrected save passes the focused emulator and post-save gates
+- Reason: the four corrected defects are operational and require direct game verification

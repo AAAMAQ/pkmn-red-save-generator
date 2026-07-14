@@ -53,11 +53,14 @@ Currently owned through implemented and emulator-validated Milestone 6 for the R
 - party stored level
 - party stored live stats
 - all 12 permanent PC boxes
-- selected box number and changed flag
-- current-box cache content as a synchronized duplicate of the selected permanent box
+- selected box number and has-changed-boxes-before flag
+- every current working-box Pokemon and its independent structure
+- classified equality or divergence between the current working box and selected permanent box
+- boxed current HP, stored level, status, types, catch rate, moves, trainer ID, experience, Stat Experience, DVs, PP, OT, and nickname
+- nonzero independently derived withdrawal maximum HP
 - daycare occupancy and stored Pokemon
 - daycare trailing deposited-level byte
-- Hall of Fame entry count and records
+- Hall of Fame entry count, slot ordering, internal species IDs, levels, nicknames, and empty-slot structure
 - named event flags
 - trainer-battle flags
 - static-battle flags
@@ -73,7 +76,7 @@ Still deferred or temporarily disabled:
 - unsupported runtime-heavy world bytes outside the documented subset
 - fields not yet surfaced by a stable named semantic rule
 
-For emulator-modified post-save files, current-box cache divergence is permitted when the selected box dirty flag is set and the active cache contains the gameplay-modified selected box. This is not permitted for freshly generated output, where the cache must be synchronized with the selected permanent box.
+Current working-box divergence is valid in source, freshly generated, and emulator-modified saves. Both representations must be structurally valid. The current working copy is player-visible authority until the game commits it during a box switch; permanent storage remains authority for the other 11 boxes.
 
 ### Required normalized match
 
@@ -89,8 +92,8 @@ These may be recomputed as long as the decoded meaning remains correct:
 
 - duplicated badge mirror bytes
 - Pokedex counts derived from bitfields
-- party type bytes and catch-rate byte derived from species identity
-- current-box cache synchronized from storage semantics
+- party-only calculated stats derived with the exact Gen I formula where policy requires derivation
+- synchronized badge and other verified mirror bytes
 - per-box checksums
 - bank 2 and bank 3 all-box checksums
 - regenerated checksum bytes
@@ -104,8 +107,7 @@ These may differ from the target source binary and still pass:
 - unknown tails
 - padding values
 - canonical default bytes
-- stale raw cache differences eliminated by synchronization
-- boxed storage `level` when the source fixture carries an implausible boxed-level decode and `experience` remains the stronger semantic authority
+- canonical text padding after the first terminator
 - dummy-template bytes in explicitly documented inherited ranges
 - Red's-house location projection for diagnostic storage saves derived from non-baseline private fixtures
 - expected gameplay drift after emulator validation, such as travel to a Pokemon Center, playtime increase, party/storage changes from deposit or capture, dirty current-box cache state, and runtime map-state changes caused by normal gameplay
@@ -145,7 +147,7 @@ Release-grade acceptance requires:
 
 For Milestone 5 and Milestone 6, Save Genie reparse plus semantic comparison is explicitly insufficient without emulator base-load, feature interaction, save-again, and post-save reparse evidence.
 
-Milestone 6 satisfies this acceptance standard for the Red's-house safe-location profile. Broader safe-location support remains outside the completed equivalence surface.
+Earlier Milestone 6 fixtures satisfied this standard for the Red's-house safe-location profile. The completed-playthrough proof later exposed parser/comparator blind spots in text, current working storage, boxed HP, and Hall of Fame contents. Corrected automation passes, but proof-level acceptance awaits the focused second emulator retest. Broader safe-location support remains outside the equivalence surface.
 
 ## Final Release Equivalence Categories
 
@@ -162,4 +164,4 @@ The combined Final Release Milestone uses these comparison categories:
 
 Unsupported non-empty source state must be surfaced clearly. A comparison must not pass merely because unsupported fields were ignored.
 
-Public CI proves the generator's own deterministic and checksum guarantees with synthetic samples. Private Save Genie oracle validation and emulator save-again validation remain required before release tagging.
+Public CI proves the generator's own deterministic and checksum guarantees with synthetic samples. Private Save Genie oracle validation and emulator save-again validation remain required for a completed-playthrough semantic-sufficiency claim.

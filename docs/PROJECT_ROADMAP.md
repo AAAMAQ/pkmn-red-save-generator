@@ -81,11 +81,11 @@
 
 ## Combined Final Release Milestone: Original Milestones 7-9
 
-- status: complete
+- status: corrective automated phase and focused second emulator retest passed; save-again durability and post-save analysis remain required
 - scope: broad semantic validation, regression hardening, emulator matrix validation, CLI hardening, public samples, CI, documentation, versioning, and release preparation
 - current baseline: Milestones 0-6 complete and pushed through `bf275ad`
 - release candidate version: `v1.0.0`
-- release status: targeted final emulator candidates passed load, interaction, save-again, shutdown, Save Genie reparse, checksum validation, and expected-drift comparison
+- release status: the first broad pass proved general playability but invalidated the original semantic-sufficiency conclusion by exposing four operational defects; the focused corrected-save retest passed, but no post-emulator battery save was produced
 
 ### Original Milestone 7: Full Semantic Comparison
 
@@ -93,14 +93,14 @@
 - contamination fixtures
 - unsupported-field reporting
 - deterministic output tests
-- status: complete as part of the combined Final Release Milestone
+- status: reopened and strengthened after the first manual pass; corrected structural comparison received focused emulator confirmation
 
 ### Original Milestone 8: Emulator And Save-Again Validation
 
-- targeted emulator candidates for core load, PC storage, Daycare, Hall of Fame, event/world state, and unsafe-location rejection
+- targeted emulator candidates for core load, PC storage, Daycare, Hall of Fame, event/world state, and unsupported-location canonicalization
 - save-again and shutdown verification
 - post-save Save Genie reparse and semantic comparison
-- status: complete for targeted public representative and private full-state candidates; Daycare direct UI interaction remains a documented limitation
+- status: focused corrected-save checks passed for punctuation, selected Box 12, boxed-Pokemon withdrawal HP, and Hall of Fame teams; normal save/shutdown/reload and post-save reparse remain pending
 
 ### Original Milestone 9: Release Readiness
 
@@ -110,4 +110,4 @@
 - document provenance reporting
 - public samples and CI
 - release checklist and release notes
-- status: complete; `v1.0.0` is ready to tag after the release commit is pushed
+- status: historical `v1.0.0` remains published, but the final semantic-sufficiency proof is provisional and no corrective release should be published before save-again durability and post-save analysis pass
